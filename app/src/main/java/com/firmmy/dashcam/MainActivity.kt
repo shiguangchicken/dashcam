@@ -21,6 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.firmmy.dashcam.core.common.DeviceRole
+import com.firmmy.dashcam.core.database.DashCamSettings
+import com.firmmy.dashcam.feature.settings.SettingsScreen
 import com.firmmy.dashcam.ui.theme.DashCamTheme
 
 class MainActivity : ComponentActivity() {
@@ -36,7 +38,9 @@ class MainActivity : ComponentActivity() {
                 ) {
                     DashCamApp(
                         initialRole = roleStore.currentRole(),
+                        initialSettings = roleStore.currentSettings(),
                         onRoleSelected = roleStore::saveRole,
+                        onSettingsSaved = roleStore::saveSettings,
                     )
                 }
             }
@@ -47,9 +51,12 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun DashCamApp(
     initialRole: DeviceRole?,
+    initialSettings: DashCamSettings = DashCamSettings(deviceRole = initialRole),
     onRoleSelected: (DeviceRole) -> Unit,
+    onSettingsSaved: (DashCamSettings) -> Unit = {},
 ) {
     var selectedRole by remember { mutableStateOf(initialRole) }
+    var settings by remember { mutableStateOf(initialSettings.copy(deviceRole = initialRole ?: initialSettings.deviceRole)) }
     var permissionsAcknowledged by remember { mutableStateOf(false) }
 
     when {
@@ -57,10 +64,12 @@ fun DashCamApp(
             onRecorderSelected = {
                 onRoleSelected(DeviceRole.RECORDER)
                 selectedRole = DeviceRole.RECORDER
+                settings = settings.copy(deviceRole = DeviceRole.RECORDER)
             },
             onRemoteSelected = {
                 onRoleSelected(DeviceRole.REMOTE)
                 selectedRole = DeviceRole.REMOTE
+                settings = settings.copy(deviceRole = DeviceRole.REMOTE)
             },
         )
 
@@ -69,7 +78,15 @@ fun DashCamApp(
             onContinue = { permissionsAcknowledged = true },
         )
 
-        else -> HomeScreen(role = selectedRole ?: DeviceRole.RECORDER)
+        else -> HomeScreen(
+            role = selectedRole ?: DeviceRole.RECORDER,
+            settings = settings,
+            onSettingsSaved = { updatedSettings ->
+                onSettingsSaved(updatedSettings)
+                settings = updatedSettings
+                updatedSettings.deviceRole?.let { selectedRole = it }
+            },
+        )
     }
 }
 
@@ -138,7 +155,11 @@ private fun PermissionGuideScreen(
 }
 
 @Composable
-private fun HomeScreen(role: DeviceRole) {
+private fun HomeScreen(
+    role: DeviceRole,
+    settings: DashCamSettings,
+    onSettingsSaved: (DashCamSettings) -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -150,5 +171,10 @@ private fun HomeScreen(role: DeviceRole) {
             style = MaterialTheme.typography.headlineMedium,
         )
         Text("Current role: ${role.label}")
+        SettingsScreen(
+            modifier = Modifier.weight(1f),
+            settings = settings.copy(deviceRole = role),
+            onSave = onSettingsSaved,
+        )
     }
 }

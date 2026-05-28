@@ -2,21 +2,33 @@ package com.firmmy.dashcam
 
 import android.content.Context
 import com.firmmy.dashcam.core.common.DeviceRole
+import com.firmmy.dashcam.core.database.DashCamDatabaseProvider
+import com.firmmy.dashcam.core.database.DashCamSettings
+import com.firmmy.dashcam.core.database.SettingsRepository
+import kotlinx.coroutines.runBlocking
 
 class RoleStore(context: Context) {
-    private val preferences = context.getSharedPreferences("dashcam_settings", Context.MODE_PRIVATE)
+    private val settingsRepository = SettingsRepository(
+        DashCamDatabaseProvider.get(context).appSettingDao(),
+    )
 
-    fun currentRole(): DeviceRole? = preferences
-        .getString(KEY_DEVICE_ROLE, null)
-        ?.let(DeviceRole::fromStoredValue)
-
-    fun saveRole(role: DeviceRole) {
-        preferences.edit()
-            .putString(KEY_DEVICE_ROLE, role.storedValue)
-            .apply()
+    fun currentRole(): DeviceRole? = runBlocking {
+        settingsRepository.getDeviceRole()
     }
 
-    private companion object {
-        const val KEY_DEVICE_ROLE = "device_role"
+    fun currentSettings(): DashCamSettings = runBlocking {
+        settingsRepository.getSettings()
+    }
+
+    fun saveRole(role: DeviceRole) {
+        runBlocking {
+            settingsRepository.saveDeviceRole(role)
+        }
+    }
+
+    fun saveSettings(settings: DashCamSettings) {
+        runBlocking {
+            settingsRepository.saveSettings(settings)
+        }
     }
 }

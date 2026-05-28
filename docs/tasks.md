@@ -41,10 +41,10 @@
 
 ### Task 03：实现公共领域模型与命令接口
 
-- [ ] 在 `core-common` 定义 `DashCamCommand`、录制模式、录制状态、媒体类型、错误类型。
-- [ ] 定义统一 `Result` 或错误封装。
-- [ ] 定义日志工具和时间/文件大小格式化工具。
-- [ ] 为命令和状态添加单元测试。
+- [x] 在 `core-common` 定义 `DashCamCommand`、录制模式、录制状态、媒体类型、错误类型。
+- [x] 定义统一 `Result` 或错误封装。
+- [x] 定义日志工具和时间/文件大小格式化工具。
+- [x] 为命令和状态添加单元测试。
 
 验收：
 
@@ -54,11 +54,11 @@
 
 ### Task 04：实现 Room 数据库
 
-- [ ] 在 `core-database` 创建 `MediaFileEntity`、`RecordSessionEntity`、`AppSettingEntity`。
-- [ ] 创建 DAO：媒体文件查询/插入/删除标记、会话开始/结束、设置读写。
-- [ ] 创建数据库、Migration、Repository。
-- [ ] 媒体文件字段覆盖：类型、模式、路径、缩略图、创建时间、时长、大小、分辨率、fps、码率、录音、locked、checksum、deleted。
-- [ ] 为 DAO 和 Repository 添加单元测试或 instrumented test。
+- [x] 在 `core-database` 创建 `MediaFileEntity`、`RecordSessionEntity`、`AppSettingEntity`。
+- [x] 创建 DAO：媒体文件查询/插入/删除标记、会话开始/结束、设置读写。
+- [x] 创建数据库、Migration、Repository。
+- [x] 媒体文件字段覆盖：类型、模式、路径、缩略图、创建时间、时长、大小、分辨率、fps、码率、录音、locked、checksum、deleted。
+- [x] 为 DAO 和 Repository 添加单元测试或 instrumented test。
 
 验收：
 
@@ -68,12 +68,12 @@
 
 ### Task 05：实现设置系统与设置页
 
-- [ ] 在 `feature-settings` 实现设置页 UI。
-- [ ] 支持设置项：本机角色、驾驶/停车分辨率、帧率、码率、分段时长、最大存储空间、最小保留空间、录音开关、语音唤醒开关、唤醒词、热点信息、配对 token。
-- [ ] 在 `core-database` 或独立 repository 中提供 `SettingsRepository`。
-- [ ] 提供默认设置和非法值回退。
-- [ ] 所有设置项添加稳定 `testTag`。
-- [ ] 添加设置读写测试和 Compose UI 测试。
+- [x] 在 `feature-settings` 实现设置页 UI。
+- [x] 支持设置项：本机角色、驾驶/停车分辨率、帧率、码率、分段时长、最大存储空间、最小保留空间、录音开关、语音唤醒开关、唤醒词、热点信息、配对 token。
+- [x] 在 `core-database` 或独立 repository 中提供 `SettingsRepository`。
+- [x] 提供默认设置和非法值回退。
+- [x] 所有设置项添加稳定 `testTag`。
+- [x] 添加设置读写测试和 Compose UI 测试。
 
 验收：
 

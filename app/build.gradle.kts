@@ -25,6 +25,7 @@ android {
 
 dependencies {
     implementation(project(":core-common"))
+    implementation(project(":core-database"))
     implementation(project(":feature-recorder"))
     implementation(project(":feature-remote"))
     implementation(project(":feature-settings"))
@@ -37,6 +38,8 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)

@@ -161,7 +161,9 @@ adb shell am start -n com.firmmy.dashcam/.MainActivity
 
 - [x] 2026-05-28 使用 `JAVA_HOME=/home/meng/Software/android-studio-2025.2.3.9/android-studio/jbr` 运行 `./gradlew :core-media:testDebugUnitTest` 通过。
 - [x] 2026-05-28 使用 `JAVA_HOME=/home/meng/Software/android-studio-2025.2.3.9/android-studio/jbr` 运行 `./gradlew assembleDebug` 通过。
-- [ ] 2026-05-28 未完成真机安装、启动和 30 秒 CameraX 录制/拍照手动验收。原因：Mi 10 通过 ADB 可见，但 `adb install -r app/build/outputs/apk/debug/app-debug.apk` 返回 `INSTALL_FAILED_USER_RESTRICTED: Install canceled by user`，设备阻止 USB 安装。
+- [x] 2026-05-28 重新授权 USB 安装后，Mi 10 上 `adb install -r app/build/outputs/apk/debug/app-debug.apk` 通过，`adb shell am start -n com.firmmy.dashcam/.MainActivity` 通过，Activity 进入 resumed 状态。
+- [ ] 2026-05-28 未完成驾驶模式录制 30 秒、停车模式录制 30 秒、拍照和文件列表手动验收。原因：当前 `MainActivity` 仍接入 `FakeRecorderScreen`，`CameraRecorderManager`/`CameraXCameraFacade` 原型尚未接入 app UI 或 `RecorderForegroundService`，无法从已安装 APK 触发真实 CameraX 录制。
+- [ ] 2026-05-28 追加运行 `./gradlew :app:connectedDebugAndroidTest`，测试 APK 已安装并显示 `Starting 2 tests on Mi 10 - 13`，但长时间停留在 `Tests 0/2 completed`；已终止该 Gradle/UTP 进程，未计为通过。
 
 ### Task 10：实现分段录制
 

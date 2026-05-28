@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.firmmy.dashcam.core.common.DeviceRole
 import com.firmmy.dashcam.core.database.DashCamSettings
+import com.firmmy.dashcam.feature.recorder.FakeRecorderScreen
 import com.firmmy.dashcam.feature.settings.SettingsScreen
 import com.firmmy.dashcam.ui.theme.DashCamTheme
 
@@ -160,6 +161,15 @@ private fun HomeScreen(
     settings: DashCamSettings,
     onSettingsSaved: (DashCamSettings) -> Unit,
 ) {
+    var showSettings by remember { mutableStateOf(role != DeviceRole.RECORDER) }
+
+    if (role == DeviceRole.RECORDER && !showSettings) {
+        FakeRecorderScreen(
+            onSettingsClick = { showSettings = true },
+        )
+        return
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -174,7 +184,12 @@ private fun HomeScreen(
         SettingsScreen(
             modifier = Modifier.weight(1f),
             settings = settings.copy(deviceRole = role),
-            onSave = onSettingsSaved,
+            onSave = { updatedSettings ->
+                onSettingsSaved(updatedSettings)
+                if (updatedSettings.deviceRole == DeviceRole.RECORDER) {
+                    showSettings = false
+                }
+            },
         )
     }
 }

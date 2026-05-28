@@ -85,12 +85,12 @@
 
 ### Task 06：实现记录仪首页 UI 与状态展示
 
-- [ ] 在 `feature-recorder` 创建记录仪首页。
-- [ ] 展示当前模式、录制状态、当前片段时长、剩余空间、电量、温度、录音状态、热点状态。
-- [ ] 提供开始/停止、驾驶模式、停车模式、拍照、录音开关、热点开关、查看文件、设置入口。
-- [ ] 接入 fake ViewModel，先用假数据驱动 UI。
-- [ ] 添加 `testTag`：`recorder_start_button`、`mode_driving_button`、`mode_parking_button`、`take_photo_button`、`audio_toggle_button`、`hotspot_toggle_button`、`current_mode_text`、`recording_status_text`。
-- [ ] 添加 Compose UI 测试覆盖按钮可见性和状态切换。
+- [x] 在 `feature-recorder` 创建记录仪首页。
+- [x] 展示当前模式、录制状态、当前片段时长、剩余空间、电量、温度、录音状态、热点状态。
+- [x] 提供开始/停止、驾驶模式、停车模式、拍照、录音开关、热点开关、查看文件、设置入口。
+- [x] 接入 fake ViewModel，先用假数据驱动 UI。
+- [x] 添加 `testTag`：`recorder_start_button`、`mode_driving_button`、`mode_parking_button`、`take_photo_button`、`audio_toggle_button`、`hotspot_toggle_button`、`current_mode_text`、`recording_status_text`。
+- [x] 添加 Compose UI 测试覆盖按钮可见性和状态切换。
 
 验收：
 
@@ -100,11 +100,11 @@
 
 ### Task 07：实现模式切换状态机
 
-- [ ] 在 `core-media` 实现 `DashCamStateMachine`。
-- [ ] 支持状态：`Idle`、`RecordingDriving`、`RecordingParking`、`Paused`、`EventBoostRecording`、`Error`。
-- [ ] 支持命令：开始驾驶、开始停车、拍照、开关录音、开关热点、锁定当前片段、停止录制。
-- [ ] 将非法迁移返回明确错误。
-- [ ] 单元测试覆盖设计文档中的所有状态迁移。
+- [x] 在 `core-media` 实现 `DashCamStateMachine`。
+- [x] 支持状态：`Idle`、`RecordingDriving`、`RecordingParking`、`Paused`、`EventBoostRecording`、`Error`。
+- [x] 支持命令：开始驾驶、开始停车、拍照、开关录音、开关热点、锁定当前片段、停止录制。
+- [x] 将非法迁移返回明确错误。
+- [x] 单元测试覆盖设计文档中的所有状态迁移。
 
 验收：
 

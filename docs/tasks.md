@@ -114,12 +114,12 @@
 
 ### Task 08：实现文件目录、媒体仓库与缩略图基础能力
 
-- [ ] 在 `core-media` 创建 app-specific external storage 目录结构：`videos/driving`、`videos/parking`、`videos/locked`、`photos`、`thumbnails`、`logs`。
-- [ ] 实现媒体文件命名规则和日期目录。
-- [ ] 实现媒体写入完成后再入库。
-- [ ] 实现视频/照片列表查询。
-- [ ] 实现缩略图生成接口，先支持图片缩略图，视频缩略图可用 Android API 或后续 CameraX 输出补齐。
-- [ ] 添加文件命名、目录创建、入库逻辑测试。
+- [x] 在 `core-media` 创建 app-specific external storage 目录结构：`videos/driving`、`videos/parking`、`videos/locked`、`photos`、`thumbnails`、`logs`。
+- [x] 实现媒体文件命名规则和日期目录。
+- [x] 实现媒体写入完成后再入库。
+- [x] 实现视频/照片列表查询。
+- [x] 实现缩略图生成接口，先支持图片缩略图，视频缩略图可用 Android API 或后续 CameraX 输出补齐。
+- [x] 添加文件命名、目录创建、入库逻辑测试。
 
 验收：
 
@@ -127,15 +127,19 @@
 ./gradlew :core-media:testDebugUnitTest
 ```
 
+验证记录：
+
+- [x] 2026-05-28 使用 `JAVA_HOME=/home/meng/Software/android-studio-2025.2.3.9/android-studio/jbr` 运行 `./gradlew :core-media:testDebugUnitTest` 通过。
+
 ### Task 09：实现 CameraX 录制与拍照原型
 
-- [ ] 在 `core-media` 实现 `CameraRecorderManager`。
-- [ ] 支持 `startDrivingRecording()`、`startParkingRecording()`、`stopRecording()`、`takePhoto()`。
-- [ ] 驾驶模式使用高帧率/高码率配置，停车模式使用低帧率/低码率配置。
-- [ ] 支持录音开关。
-- [ ] 录制完成后写入 Room，并生成缩略图。
-- [ ] 处理相机权限缺失、编码器不支持、存储不可写等错误。
-- [ ] 提供 fake camera facade 方便单元测试。
+- [x] 在 `core-media` 实现 `CameraRecorderManager`。
+- [x] 支持 `startDrivingRecording()`、`startParkingRecording()`、`stopRecording()`、`takePhoto()`。
+- [x] 驾驶模式使用高帧率/高码率配置，停车模式使用低帧率/低码率配置。
+- [x] 支持录音开关。
+- [x] 录制完成后写入 Room，并生成缩略图。
+- [x] 处理相机权限缺失、编码器不支持、存储不可写等错误。
+- [x] 提供 fake camera facade 方便单元测试。
 
 验收：
 
@@ -148,10 +152,16 @@
 
 ```bash
 adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell am start -n com.example.dashcam/.MainActivity
+adb shell am start -n com.firmmy.dashcam/.MainActivity
 ```
 
 手动验证：驾驶模式录制 30 秒，停车模式录制 30 秒，拍照成功，文件入库并可在文件列表看到。
+
+验证记录：
+
+- [x] 2026-05-28 使用 `JAVA_HOME=/home/meng/Software/android-studio-2025.2.3.9/android-studio/jbr` 运行 `./gradlew :core-media:testDebugUnitTest` 通过。
+- [x] 2026-05-28 使用 `JAVA_HOME=/home/meng/Software/android-studio-2025.2.3.9/android-studio/jbr` 运行 `./gradlew assembleDebug` 通过。
+- [ ] 2026-05-28 未完成真机安装、启动和 30 秒 CameraX 录制/拍照手动验收。原因：Mi 10 通过 ADB 可见，但 `adb install -r app/build/outputs/apk/debug/app-debug.apk` 返回 `INSTALL_FAILED_USER_RESTRICTED: Install canceled by user`，设备阻止 USB 安装。
 
 ### Task 10：实现分段录制
 

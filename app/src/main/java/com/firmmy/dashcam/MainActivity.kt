@@ -1,5 +1,7 @@
 package com.firmmy.dashcam
 
+import android.Manifest
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -18,11 +20,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.firmmy.dashcam.core.common.DeviceRole
 import com.firmmy.dashcam.core.database.DashCamSettings
-import com.firmmy.dashcam.feature.recorder.FakeRecorderScreen
 import com.firmmy.dashcam.feature.settings.SettingsScreen
 import com.firmmy.dashcam.ui.theme.DashCamTheme
 
@@ -41,11 +43,27 @@ class MainActivity : ComponentActivity() {
                         initialRole = roleStore.currentRole(),
                         initialSettings = roleStore.currentSettings(),
                         onRoleSelected = roleStore::saveRole,
+                        onRequestPermissions = ::requestDashCamPermissions,
                         onSettingsSaved = roleStore::saveSettings,
                     )
                 }
             }
         }
+    }
+
+    private fun requestDashCamPermissions() {
+        val permissions = buildList {
+            add(Manifest.permission.CAMERA)
+            add(Manifest.permission.RECORD_AUDIO)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+        requestPermissions(permissions.toTypedArray(), REQUEST_DASHCAM_PERMISSIONS)
+    }
+
+    companion object {
+        private const val REQUEST_DASHCAM_PERMISSIONS = 2001
     }
 }
 
@@ -54,6 +72,7 @@ fun DashCamApp(
     initialRole: DeviceRole?,
     initialSettings: DashCamSettings = DashCamSettings(deviceRole = initialRole),
     onRoleSelected: (DeviceRole) -> Unit,
+    onRequestPermissions: () -> Unit = {},
     onSettingsSaved: (DashCamSettings) -> Unit = {},
 ) {
     var selectedRole by remember { mutableStateOf(initialRole) }
@@ -76,7 +95,10 @@ fun DashCamApp(
 
         !permissionsAcknowledged -> PermissionGuideScreen(
             role = selectedRole ?: DeviceRole.RECORDER,
-            onContinue = { permissionsAcknowledged = true },
+            onContinue = {
+                onRequestPermissions()
+                permissionsAcknowledged = true
+            },
         )
 
         else -> HomeScreen(
@@ -164,7 +186,8 @@ private fun HomeScreen(
     var showSettings by remember { mutableStateOf(role != DeviceRole.RECORDER) }
 
     if (role == DeviceRole.RECORDER && !showSettings) {
-        FakeRecorderScreen(
+        CameraBackedRecorderScreen(
+            context = LocalContext.current,
             onSettingsClick = { showSettings = true },
         )
         return

@@ -3,8 +3,6 @@ package com.firmmy.dashcam.core.media
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.util.Range
-import android.util.Size
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -67,10 +65,7 @@ class CameraXCameraFacade(
                 .setQualitySelector(profile.quality.toQualitySelector())
                 .setTargetVideoEncodingBitRate(profile.bitrateKbps * 1_000)
                 .build()
-            val capture = VideoCapture.Builder(recorder)
-                .setTargetResolution(Size(profile.resolution.width, profile.resolution.height))
-                .setTargetFrameRate(Range(profile.fps, profile.fps))
-                .build()
+            val capture = VideoCapture.withOutput(recorder)
             val image = imageCapture ?: ImageCapture.Builder()
                 .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                 .build()

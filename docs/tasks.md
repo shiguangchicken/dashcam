@@ -162,8 +162,10 @@ adb shell am start -n com.firmmy.dashcam/.MainActivity
 - [x] 2026-05-28 使用 `JAVA_HOME=/home/meng/Software/android-studio-2025.2.3.9/android-studio/jbr` 运行 `./gradlew :core-media:testDebugUnitTest` 通过。
 - [x] 2026-05-28 使用 `JAVA_HOME=/home/meng/Software/android-studio-2025.2.3.9/android-studio/jbr` 运行 `./gradlew assembleDebug` 通过。
 - [x] 2026-05-28 重新授权 USB 安装后，Mi 10 上 `adb install -r app/build/outputs/apk/debug/app-debug.apk` 通过，`adb shell am start -n com.firmmy.dashcam/.MainActivity` 通过，Activity 进入 resumed 状态。
-- [ ] 2026-05-28 未完成驾驶模式录制 30 秒、停车模式录制 30 秒、拍照和文件列表手动验收。原因：当前 `MainActivity` 仍接入 `FakeRecorderScreen`，`CameraRecorderManager`/`CameraXCameraFacade` 原型尚未接入 app UI 或 `RecorderForegroundService`，无法从已安装 APK 触发真实 CameraX 录制。
-- [ ] 2026-05-28 追加运行 `./gradlew :app:connectedDebugAndroidTest`，测试 APK 已安装并显示 `Starting 2 tests on Mi 10 - 13`，但长时间停留在 `Tests 0/2 completed`；已终止该 Gradle/UTP 进程，未计为通过。
+- [x] 2026-05-28 将 `MainActivity` 录制页接入 `CameraRecorderManager`/`CameraXCameraFacade`，首次进入权限页后请求相机、麦克风和 Android 13+ 通知权限；Mi 10 上确认 `CAMERA`、`RECORD_AUDIO`、`POST_NOTIFICATIONS` 均已授权。
+- [x] 2026-05-28 Mi 10 手动验收通过：驾驶模式录制约 40 秒生成 `DashCam/videos/driving/2026-05-28/20260528_221254_001.mp4` 和视频缩略图；停车模式录制约 32 秒生成 `DashCam/videos/parking/2026-05-28/20260528_221352_001.mp4` 和视频缩略图；拍照生成 `DashCam/photos/2026-05-28/20260528_221427.jpg` 和图片缩略图；拉取 Room 数据库确认 3 条媒体记录均含文件路径、缩略图路径、大小，视频记录含时长。
+- [x] 2026-05-28 重新安装测试 APK 后，设置 `adb shell appops set com.firmmy.dashcam 10021 allow` 和 `adb shell appops set com.firmmy.dashcam RUN_ANY_IN_BACKGROUND allow`，直接运行 `adb shell am instrument -w -r com.firmmy.dashcam.test/androidx.test.runner.AndroidJUnitRunner` 通过，2 个 app instrumentation 测试均通过。
+- [ ] 2026-05-28 追加运行 `./gradlew :app:connectedDebugAndroidTest` 仍未计为通过：Gradle/UTP 每次重新安装后 Mi 10 会重置/阻止 Compose 测试宿主 Activity 的后台启动，logcat 显示 `Permission Denied Activity` 与 `Abort background activity starts from 10042`，任务停留在 `Tests 0/2 completed`；已终止该 Gradle/UTP 进程。
 
 ### Task 10：实现分段录制
 

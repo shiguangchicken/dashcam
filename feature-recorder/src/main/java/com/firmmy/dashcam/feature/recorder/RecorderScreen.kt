@@ -2,8 +2,6 @@ package com.firmmy.dashcam.feature.recorder
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -105,7 +103,6 @@ class FakeRecorderStateHolder(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RecorderScreen(
     modifier: Modifier = Modifier,
@@ -153,55 +150,70 @@ fun RecorderScreen(
             StatusRow("Photos", state.photoCount.toString())
         }
 
-        FlowRow(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Button(
-                modifier = Modifier.testTag("recorder_start_button"),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("recorder_start_button"),
                 onClick = onStartStopClick,
             ) {
                 Text(if (state.recordingStatus == RecordingStatus.IDLE) "Start" else "Stop")
             }
             FilledTonalButton(
-                modifier = Modifier.testTag("mode_driving_button"),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("mode_driving_button"),
                 onClick = onDrivingModeClick,
             ) {
                 Text("Driving")
             }
             FilledTonalButton(
-                modifier = Modifier.testTag("mode_parking_button"),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("mode_parking_button"),
                 onClick = onParkingModeClick,
             ) {
                 Text("Parking")
             }
             OutlinedButton(
-                modifier = Modifier.testTag("take_photo_button"),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("take_photo_button"),
                 onClick = onTakePhotoClick,
             ) {
                 Text("Photo")
             }
             OutlinedButton(
-                modifier = Modifier.testTag("audio_toggle_button"),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("audio_toggle_button"),
                 onClick = onAudioToggleClick,
             ) {
                 Text(if (state.audioEnabled) "Mute" else "Audio")
             }
             OutlinedButton(
-                modifier = Modifier.testTag("hotspot_toggle_button"),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("hotspot_toggle_button"),
                 onClick = onHotspotToggleClick,
             ) {
                 Text(if (state.hotspotEnabled) "Hotspot off" else "Hotspot on")
             }
             OutlinedButton(
-                modifier = Modifier.testTag("view_files_button"),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("view_files_button"),
                 onClick = onViewFilesClick,
             ) {
                 Text("Files")
             }
             OutlinedButton(
-                modifier = Modifier.testTag("recorder_settings_button"),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("recorder_settings_button"),
                 onClick = onSettingsClick,
             ) {
                 Text("Settings")

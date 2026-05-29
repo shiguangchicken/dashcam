@@ -73,11 +73,12 @@ fun MediaBrowserScreen(
     var selectedItem by remember { mutableStateOf<MediaBrowserItem?>(null) }
 
     val visibleItems = remember(items, selectedType, selectedDate, selectedMode) {
-        items
-            .filter { it.type == selectedType }
-            .filter { selectedDate == null || it.createdAt.dateKey() == selectedDate }
-            .filter { selectedMode == null || it.mode == selectedMode }
-            .sortedByDescending { it.createdAt }
+        filterMediaBrowserItems(
+            items = items,
+            type = selectedType,
+            date = selectedDate,
+            mode = selectedMode,
+        )
     }
     val dates = remember(items, selectedType) {
         items
@@ -359,5 +360,18 @@ private fun PhotoPreview(path: String) {
 
 private fun Long.dateKey(zoneId: ZoneId = ZoneId.systemDefault()): String =
     Instant.ofEpochMilli(this).atZone(zoneId).format(dateFormatter)
+
+fun filterMediaBrowserItems(
+    items: List<MediaBrowserItem>,
+    type: MediaType,
+    date: String? = null,
+    mode: RecordingMode? = null,
+    zoneId: ZoneId = ZoneId.systemDefault(),
+): List<MediaBrowserItem> =
+    items
+        .filter { it.type == type }
+        .filter { date == null || it.createdAt.dateKey(zoneId) == date }
+        .filter { mode == null || it.mode == mode }
+        .sortedByDescending { it.createdAt }
 
 private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")

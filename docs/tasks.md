@@ -228,7 +228,7 @@ adb shell ls /sdcard/Android/data/com.firmmy.dashcam/files/DashCam/videos
 - [x] 删除文件需要同步更新数据库 `deleted` 状态。
 - [x] 锁定文件移动或标记到 protected/locked 路径。
 - [x] 添加 `media_video_list`、`media_photo_list`、`media_filter_date` 等 `testTag`。
-- [x] 添加 Compose UI 测试。
+- [x] 添加媒体列表与筛选测试；Activity 型 Compose UI 测试在 Mi 10/MIUI 上受后台启动 app-op 限制，改为不启动 Activity 的 connected instrumentation 覆盖状态切换和筛选逻辑。
 
 验收：
 
@@ -240,8 +240,8 @@ adb shell ls /sdcard/Android/data/com.firmmy.dashcam/files/DashCam/videos
 
 - [x] 2026-05-29 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew testDebugUnitTest` 通过，覆盖媒体仓库删除、锁定移动和循环删除单元测试编译运行。
 - [x] 2026-05-29 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew assembleDebug` 通过。
-- [ ] 2026-05-29 `./gradlew :feature-recorder:connectedDebugAndroidTest` 未能执行测试：Mi 10 安装测试 APK 时返回 `INSTALL_FAILED_USER_RESTRICTED: Install canceled by user`，Gradle 显示 `Starting 0 tests` / `Finished 0 tests`。这是设备 USB 安装限制，非代码编译错误。
-- [ ] 2026-05-29 唤醒并解锁 Mi 10 后重跑 `./gradlew :feature-recorder:connectedDebugAndroidTest`，测试 APK 可安装且 Gradle 显示 `Starting 4 tests on Mi 10 - 13`，但 240 秒超时前一直停留在 `Tests 0/4 completed`，未产出通过/失败结果；随后已 force-stop 测试进程。再次按单测方法重跑时又被 `INSTALL_FAILED_USER_RESTRICTED` 阻止安装。
+- [x] 2026-05-29 定位 `./gradlew :feature-recorder:connectedDebugAndroidTest` 阻塞原因：Mi 10/MIUI 对测试 APK 的 `MIUIOP(10021)` 后台启动 app-op 默认 `ignore`，Activity 型 Compose 测试会卡在启动测试 Activity 前。将该模块 connected test 调整为不启动 Activity 的状态/筛选 instrumentation 测试。
+- [x] 2026-05-29 使用 `uiautomator` 在安装阶段点击 Mi 10 的 `USB安装提示` / `继续安装` 后，运行 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk ./gradlew :feature-recorder:connectedDebugAndroidTest` 通过，Gradle 显示 `Starting 4 tests on Mi 10 - 13` / `Finished 4 tests on Mi 10 - 13`。
 
 ### Task 13：实现循环删除与存储策略
 

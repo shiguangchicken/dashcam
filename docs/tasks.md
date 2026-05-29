@@ -241,6 +241,7 @@ adb shell ls /sdcard/Android/data/com.firmmy.dashcam/files/DashCam/videos
 - [x] 2026-05-29 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew testDebugUnitTest` 通过，覆盖媒体仓库删除、锁定移动和循环删除单元测试编译运行。
 - [x] 2026-05-29 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew assembleDebug` 通过。
 - [ ] 2026-05-29 `./gradlew :feature-recorder:connectedDebugAndroidTest` 未能执行测试：Mi 10 安装测试 APK 时返回 `INSTALL_FAILED_USER_RESTRICTED: Install canceled by user`，Gradle 显示 `Starting 0 tests` / `Finished 0 tests`。这是设备 USB 安装限制，非代码编译错误。
+- [ ] 2026-05-29 唤醒并解锁 Mi 10 后重跑 `./gradlew :feature-recorder:connectedDebugAndroidTest`，测试 APK 可安装且 Gradle 显示 `Starting 4 tests on Mi 10 - 13`，但 240 秒超时前一直停留在 `Tests 0/4 completed`，未产出通过/失败结果；随后已 force-stop 测试进程。再次按单测方法重跑时又被 `INSTALL_FAILED_USER_RESTRICTED` 阻止安装。
 
 ### Task 13：实现循环删除与存储策略
 

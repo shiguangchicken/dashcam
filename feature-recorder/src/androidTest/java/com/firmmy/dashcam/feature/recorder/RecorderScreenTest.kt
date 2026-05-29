@@ -5,7 +5,9 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.firmmy.dashcam.core.common.MediaType
 import com.firmmy.dashcam.core.common.RecordingMode
 import com.firmmy.dashcam.core.common.RecordingStatus
 import org.junit.Rule
@@ -56,6 +58,41 @@ class RecorderScreenTest {
         composeRule.onNodeWithTag("recording_status_text").assertTextContains("Idle")
     }
 
+    @Test
+    fun mediaBrowserShowsListsAndFiltersMedia() {
+        setMediaBrowserContent()
+
+        composeRule.onNodeWithTag("media_video_list").assertIsDisplayed()
+        composeRule.onNodeWithTag("media_filter_date").assertIsDisplayed()
+        composeRule.onNodeWithTag("media_item_1").assertIsDisplayed()
+
+        composeRule.onNodeWithText("2026-05-28").performClick()
+        composeRule.onNodeWithTag("media_item_1").assertIsDisplayed()
+
+        composeRule.onNodeWithText("Photos").performClick()
+        composeRule.onNodeWithTag("media_photo_list").assertIsDisplayed()
+        composeRule.onNodeWithTag("media_item_3").assertIsDisplayed()
+    }
+
+    @Test
+    fun mediaBrowserOpensVideoAndRunsFileActions() {
+        var deleted = 0L
+        var locked = 0L
+        setMediaBrowserContent(
+            onDeleteClick = { deleted = it.id },
+            onLockClick = { locked = it.id },
+        )
+
+        composeRule.onNodeWithTag("media_item_1").performClick()
+        composeRule.onNodeWithTag("media_video_player").assertIsDisplayed()
+        composeRule.onNodeWithTag("media_lock_button").performClick()
+        composeRule.runOnIdle { assert(locked == 1L) }
+
+        composeRule.onNodeWithTag("media_item_1").performClick()
+        composeRule.onNodeWithTag("media_delete_button").performClick()
+        composeRule.runOnIdle { assert(deleted == 1L) }
+    }
+
     private fun setRecorderContent(
         state: RecorderUiState = RecorderUiState(
             mode = RecordingMode.DRIVING,
@@ -79,4 +116,54 @@ class RecorderScreenTest {
             }
         }
     }
+
+    private fun setMediaBrowserContent(
+        onDeleteClick: (MediaBrowserItem) -> Unit = {},
+        onLockClick: (MediaBrowserItem) -> Unit = {},
+    ) {
+        composeRule.setContent {
+            MaterialTheme {
+                MediaBrowserScreen(
+                    items = listOf(
+                        mediaItem(
+                            id = 1L,
+                            type = MediaType.VIDEO,
+                            mode = RecordingMode.DRIVING,
+                            createdAt = 1_779_926_400_000L,
+                        ),
+                        mediaItem(
+                            id = 2L,
+                            type = MediaType.VIDEO,
+                            mode = RecordingMode.PARKING,
+                            createdAt = 1_780_012_800_000L,
+                        ),
+                        mediaItem(
+                            id = 3L,
+                            type = MediaType.PHOTO,
+                            mode = RecordingMode.MANUAL,
+                            createdAt = 1_779_926_400_000L,
+                        ),
+                    ),
+                    onDeleteClick = onDeleteClick,
+                    onLockClick = onLockClick,
+                )
+            }
+        }
+    }
+
+    private fun mediaItem(
+        id: Long,
+        type: MediaType,
+        mode: RecordingMode,
+        createdAt: Long,
+    ): MediaBrowserItem =
+        MediaBrowserItem(
+            id = id,
+            type = type,
+            mode = mode,
+            path = "/tmp/media_$id",
+            createdAt = createdAt,
+            durationMs = if (type == MediaType.VIDEO) 60_000L else null,
+            sizeBytes = 1024L,
+        )
 }

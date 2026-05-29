@@ -15,18 +15,33 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.firmmy.dashcam.core.common.DeviceRole
+import com.firmmy.dashcam.core.common.MediaType
+import com.firmmy.dashcam.core.common.RecordingMode
 import com.firmmy.dashcam.core.database.DashCamSettings
+import com.firmmy.dashcam.core.database.DashCamDatabaseProvider
+import com.firmmy.dashcam.core.database.MediaFileEntity
+import com.firmmy.dashcam.core.database.MediaRepository
+import com.firmmy.dashcam.core.media.AndroidThumbnailGenerator
+import com.firmmy.dashcam.core.media.DashCamMediaDirectories
+import com.firmmy.dashcam.core.media.DashCamMediaRepository
+import com.firmmy.dashcam.feature.recorder.MediaBrowserItem
+import com.firmmy.dashcam.feature.recorder.MediaBrowserScreen
 import com.firmmy.dashcam.feature.settings.SettingsScreen
 import com.firmmy.dashcam.ui.theme.DashCamTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     private val roleStore by lazy { RoleStore(this) }
@@ -184,10 +199,20 @@ private fun HomeScreen(
     onSettingsSaved: (DashCamSettings) -> Unit,
 ) {
     var showSettings by remember { mutableStateOf(role != DeviceRole.RECORDER) }
+    var showFiles by remember { mutableStateOf(false) }
+
+    if (role == DeviceRole.RECORDER && showFiles) {
+        RecorderMediaBrowserScreen(
+            context = LocalContext.current,
+            onBackClick = { showFiles = false },
+        )
+        return
+    }
 
     if (role == DeviceRole.RECORDER && !showSettings) {
         CameraBackedRecorderScreen(
             context = LocalContext.current,
+            onViewFilesClick = { showFiles = true },
             onSettingsClick = { showSettings = true },
         )
         return
@@ -215,4 +240,64 @@ private fun HomeScreen(
             },
         )
     }
+}
+
+@Composable
+private fun RecorderMediaBrowserScreen(
+    context: android.content.Context,
+    onBackClick: () -> Unit,
+) {
+    val applicationContext = context.applicationContext
+    val mediaRepository = remember(applicationContext) {
+        val database = DashCamDatabaseProvider.get(applicationContext)
+        DashCamMediaRepository(
+            mediaRepository = MediaRepository(database.mediaFileDao()),
+            directories = DashCamMediaDirectories.fromContext(applicationContext),
+            thumbnailGenerator = AndroidThumbnailGenerator(),
+        )
+    }
+    val scope = rememberCoroutineScope()
+    val media by mediaRepository.observeMedia().collectAsState(initial = emptyList())
+
+    MediaBrowserScreen(
+        items = media.mapNotNull(MediaFileEntity::toBrowserItem),
+        onBackClick = onBackClick,
+        onDeleteClick = { item ->
+            scope.launch {
+                withContext(Dispatchers.IO) {
+                    mediaRepository.deleteMedia(item.id)
+                }
+            }
+        },
+        onLockClick = { item ->
+            scope.launch {
+                withContext(Dispatchers.IO) {
+                    mediaRepository.setMediaLocked(item.id, locked = true)
+                }
+            }
+        },
+        onUnlockClick = { item ->
+            scope.launch {
+                withContext(Dispatchers.IO) {
+                    mediaRepository.setMediaLocked(item.id, locked = false)
+                }
+            }
+        },
+    )
+}
+
+private fun MediaFileEntity.toBrowserItem(): MediaBrowserItem? {
+    val type = MediaType.fromStoredValue(type) ?: return null
+    val mode = RecordingMode.fromStoredValue(mode) ?: RecordingMode.MANUAL
+    return MediaBrowserItem(
+        id = id,
+        type = type,
+        mode = mode,
+        path = path,
+        thumbnailPath = thumbnailPath,
+        createdAt = createdAt,
+        durationMs = durationMs,
+        sizeBytes = sizeBytes,
+        locked = locked,
+    )
 }

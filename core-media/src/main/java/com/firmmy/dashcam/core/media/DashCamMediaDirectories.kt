@@ -76,6 +76,15 @@ class DashCamMediaDirectories(
         return dateDirectory.resolve("${prefix}_${sourceFile.nameWithoutExtension}.jpg")
     }
 
+    fun lockedVideoFile(
+        sourceFile: File,
+        createdAtMillis: Long,
+    ): File {
+        val createdAt = Instant.ofEpochMilli(createdAtMillis)
+        return datedDirectory(ensureBaseDirectories().lockedVideos, createdAt)
+            .resolve(sourceFile.name)
+    }
+
     private fun videoBaseDirectory(
         mode: RecordingMode,
         locked: Boolean,

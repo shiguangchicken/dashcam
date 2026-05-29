@@ -222,13 +222,13 @@ adb shell ls /sdcard/Android/data/com.firmmy.dashcam/files/DashCam/videos
 
 ### Task 12：实现媒体列表、本机播放与文件操作
 
-- [ ] 在 `feature-recorder` 实现视频列表、照片列表。
-- [ ] 支持按日期、模式、类型筛选。
-- [ ] 支持本机播放视频、查看照片、删除文件、锁定/解锁文件。
-- [ ] 删除文件需要同步更新数据库 `deleted` 状态。
-- [ ] 锁定文件移动或标记到 protected/locked 路径。
-- [ ] 添加 `media_video_list`、`media_photo_list`、`media_filter_date` 等 `testTag`。
-- [ ] 添加 Compose UI 测试。
+- [x] 在 `feature-recorder` 实现视频列表、照片列表。
+- [x] 支持按日期、模式、类型筛选。
+- [x] 支持本机播放视频、查看照片、删除文件、锁定/解锁文件。
+- [x] 删除文件需要同步更新数据库 `deleted` 状态。
+- [x] 锁定文件移动或标记到 protected/locked 路径。
+- [x] 添加 `media_video_list`、`media_photo_list`、`media_filter_date` 等 `testTag`。
+- [x] 添加 Compose UI 测试。
 
 验收：
 
@@ -236,20 +236,31 @@ adb shell ls /sdcard/Android/data/com.firmmy.dashcam/files/DashCam/videos
 ./gradlew :feature-recorder:connectedDebugAndroidTest
 ```
 
+验证记录：
+
+- [x] 2026-05-29 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew testDebugUnitTest` 通过，覆盖媒体仓库删除、锁定移动和循环删除单元测试编译运行。
+- [x] 2026-05-29 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew assembleDebug` 通过。
+- [ ] 2026-05-29 `./gradlew :feature-recorder:connectedDebugAndroidTest` 未能执行测试：Mi 10 安装测试 APK 时返回 `INSTALL_FAILED_USER_RESTRICTED: Install canceled by user`，Gradle 显示 `Starting 0 tests` / `Finished 0 tests`。这是设备 USB 安装限制，非代码编译错误。
+
 ### Task 13：实现循环删除与存储策略
 
-- [ ] 在 `core-media` 实现 `StoragePolicyManager`。
-- [ ] 支持最大占用空间、最小保留空间、是否允许删除停车模式视频。
-- [ ] 删除候选只包含 `locked = false` 且 `deleted = false` 的旧文件。
-- [ ] 删除直到恢复空间或没有可删文件。
-- [ ] 删除动作写日志并更新数据库。
-- [ ] 添加空间足够、空间不足、locked 保护、连续删除等单元测试。
+- [x] 在 `core-media` 实现 `StoragePolicyManager`。
+- [x] 支持最大占用空间、最小保留空间、是否允许删除停车模式视频。
+- [x] 删除候选只包含 `locked = false` 且 `deleted = false` 的旧文件。
+- [x] 删除直到恢复空间或没有可删文件。
+- [x] 删除动作写日志并更新数据库。
+- [x] 添加空间足够、空间不足、locked 保护、连续删除等单元测试。
 
 验收：
 
 ```bash
 ./gradlew :core-media:testDebugUnitTest --tests '*StoragePolicy*'
 ```
+
+验证记录：
+
+- [x] 2026-05-29 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew :core-media:testDebugUnitTest --tests '*StoragePolicy*'` 通过。
+- [x] 2026-05-29 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew ktlintCheck` 通过。
 
 ## 阶段 3：热点、局域网 API 与远程查看
 

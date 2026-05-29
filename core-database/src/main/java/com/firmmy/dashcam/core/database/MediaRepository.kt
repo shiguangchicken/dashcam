@@ -22,10 +22,31 @@ class MediaRepository(
     fun observeMediaByMode(mode: RecordingMode): Flow<List<MediaFileEntity>> =
         dao.observeByMode(mode.storedValue)
 
+    fun observeFilteredMedia(
+        type: MediaType? = null,
+        mode: RecordingMode? = null,
+        startCreatedAt: Long? = null,
+        endCreatedAt: Long? = null,
+        includeDeleted: Boolean = false,
+    ): Flow<List<MediaFileEntity>> =
+        dao.observeFiltered(
+            type = type?.storedValue,
+            mode = mode?.storedValue,
+            startCreatedAt = startCreatedAt,
+            endCreatedAt = endCreatedAt,
+            includeDeleted = includeDeleted,
+        )
+
     suspend fun markDeleted(id: Long): Boolean = dao.markDeleted(id) > 0
 
     suspend fun setLocked(id: Long, locked: Boolean): Boolean = dao.setLocked(id, locked) > 0
 
-    suspend fun oldestDeletionCandidates(limit: Int): List<MediaFileEntity> =
-        dao.oldestDeletionCandidates(limit)
+    suspend fun updatePathAndLocked(id: Long, path: String, locked: Boolean): Boolean =
+        dao.updatePathAndLocked(id, path, locked) > 0
+
+    suspend fun oldestDeletionCandidates(
+        limit: Int,
+        allowParking: Boolean = true,
+    ): List<MediaFileEntity> =
+        dao.oldestDeletionCandidates(limit, if (allowParking) 1 else 0)
 }

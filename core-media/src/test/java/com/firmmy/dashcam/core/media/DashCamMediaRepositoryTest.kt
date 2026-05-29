@@ -3,7 +3,9 @@ package com.firmmy.dashcam.core.media
 import com.firmmy.dashcam.core.common.DashCamResult
 import com.firmmy.dashcam.core.common.MediaType
 import com.firmmy.dashcam.core.common.RecordingMode
+import com.firmmy.dashcam.core.database.MediaFileEntity
 import com.firmmy.dashcam.core.database.MediaRepository
+import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import kotlinx.coroutines.runBlocking
@@ -84,6 +86,50 @@ class DashCamMediaRepositoryTest {
         assertEquals(1, thumbnailGenerator.imageThumbnailCount)
     }
 
+    @Test
+    fun deleteMediaRemovesFilesAndMarksDeleted() = runBlocking {
+        val dao = FakeMediaFileDao()
+        val repository = dashCamMediaRepository(dao, FakeThumbnailGenerator())
+        val video = temporaryFolder.root.resolve("delete.mp4").also { it.writeBytes(ByteArray(12)) }
+        val thumbnail = temporaryFolder.root.resolve("thumb.jpg").also { it.writeBytes(ByteArray(3)) }
+        val id = MediaRepository(dao).addMediaFile(
+            testMedia(path = video.absolutePath, thumbnailPath = thumbnail.absolutePath, sizeBytes = 12L),
+        )
+
+        val result = repository.deleteMedia(id)
+
+        assertTrue(result is DashCamResult.Success)
+        val value = (result as DashCamResult.Success).value
+        assertEquals(12L, value.bytesFreed)
+        assertTrue(value.fileDeleted)
+        assertTrue(value.thumbnailDeleted)
+        assertTrue(MediaRepository(dao).getMediaFile(id)?.deleted == true)
+        assertTrue(!video.exists())
+        assertTrue(!thumbnail.exists())
+    }
+
+    @Test
+    fun setMediaLockedMovesVideoToLockedDirectory() = runBlocking {
+        val dao = FakeMediaFileDao()
+        val repository = dashCamMediaRepository(dao, FakeThumbnailGenerator())
+        val video = temporaryFolder.root
+            .resolve("videos/driving/2026-05-28/20260528_101530_001.mp4")
+            .also {
+                it.parentFile?.mkdirs()
+                it.writeBytes(ByteArray(8))
+            }
+        val id = MediaRepository(dao).addMediaFile(testMedia(path = video.absolutePath, createdAt = createdAt.toEpochMilli()))
+
+        val result = repository.setMediaLocked(id, locked = true)
+
+        assertTrue(result is DashCamResult.Success)
+        val updated = MediaRepository(dao).getMediaFile(id)
+        assertTrue(updated?.locked == true)
+        assertTrue(updated?.path?.contains("/videos/locked/2026-05-28/") == true)
+        assertTrue(File(updated?.path.orEmpty()).exists())
+        assertTrue(!video.exists())
+    }
+
     private fun dashCamMediaRepository(
         dao: FakeMediaFileDao,
         thumbnailGenerator: FakeThumbnailGenerator,
@@ -92,5 +138,23 @@ class DashCamMediaRepositoryTest {
             mediaRepository = MediaRepository(dao),
             directories = DashCamMediaDirectories(temporaryFolder.root, ZoneId.of("UTC")),
             thumbnailGenerator = thumbnailGenerator,
+        )
+
+    private fun testMedia(
+        path: String,
+        createdAt: Long = 100L,
+        thumbnailPath: String? = null,
+        sizeBytes: Long = 8L,
+        locked: Boolean = false,
+    ): MediaFileEntity =
+        MediaFileEntity(
+            type = MediaType.VIDEO.storedValue,
+            mode = RecordingMode.DRIVING.storedValue,
+            path = path,
+            thumbnailPath = thumbnailPath,
+            createdAt = createdAt,
+            sizeBytes = sizeBytes,
+            hasAudio = true,
+            locked = locked,
         )
 }

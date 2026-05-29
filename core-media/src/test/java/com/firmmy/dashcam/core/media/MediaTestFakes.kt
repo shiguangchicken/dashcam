@@ -37,6 +37,22 @@ class FakeMediaFileDao : MediaFileDao {
     override fun observeByMode(mode: String, includeDeleted: Boolean): Flow<List<MediaFileEntity>> =
         flowOf(media.values.filter { it.mode == mode && (includeDeleted || !it.deleted) })
 
+    override fun observeFiltered(
+        type: String?,
+        mode: String?,
+        startCreatedAt: Long?,
+        endCreatedAt: Long?,
+        includeDeleted: Boolean,
+    ): Flow<List<MediaFileEntity>> =
+        flowOf(
+            media.values
+                .filter { type == null || it.type == type }
+                .filter { mode == null || it.mode == mode }
+                .filter { startCreatedAt == null || it.createdAt >= startCreatedAt }
+                .filter { endCreatedAt == null || it.createdAt < endCreatedAt }
+                .filter { includeDeleted || !it.deleted },
+        )
+
     override suspend fun markDeleted(id: Long): Int {
         val entity = media[id] ?: return 0
         media[id] = entity.copy(deleted = true)
@@ -49,9 +65,15 @@ class FakeMediaFileDao : MediaFileDao {
         return 1
     }
 
-    override suspend fun oldestDeletionCandidates(limit: Int): List<MediaFileEntity> =
+    override suspend fun updatePathAndLocked(id: Long, path: String, locked: Boolean): Int {
+        val entity = media[id] ?: return 0
+        media[id] = entity.copy(path = path, locked = locked)
+        return 1
+    }
+
+    override suspend fun oldestDeletionCandidates(limit: Int, allowParking: Int): List<MediaFileEntity> =
         media.values
-            .filter { !it.locked && !it.deleted }
+            .filter { !it.locked && !it.deleted && (allowParking == 1 || it.mode != RecordingMode.PARKING.storedValue) }
             .sortedBy { it.createdAt }
             .take(limit)
 }

@@ -11,6 +11,8 @@ class MediaRepository(
 
     suspend fun getMediaFile(id: Long): MediaFileEntity? = dao.getById(id)
 
+    suspend fun getMediaFileByPath(path: String): MediaFileEntity? = dao.getByPath(path)
+
     fun observeMediaFiles(includeDeleted: Boolean = false): Flow<List<MediaFileEntity>> =
         dao.observeAll(includeDeleted)
 

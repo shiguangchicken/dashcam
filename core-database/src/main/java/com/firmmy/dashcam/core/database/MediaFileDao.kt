@@ -14,6 +14,9 @@ interface MediaFileDao {
     @Query("SELECT * FROM media_file WHERE id = :id")
     suspend fun getById(id: Long): MediaFileEntity?
 
+    @Query("SELECT * FROM media_file WHERE path = :path LIMIT 1")
+    suspend fun getByPath(path: String): MediaFileEntity?
+
     @Query(
         """
         SELECT * FROM media_file

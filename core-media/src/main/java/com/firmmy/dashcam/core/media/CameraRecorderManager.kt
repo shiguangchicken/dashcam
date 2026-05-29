@@ -21,6 +21,9 @@ class CameraRecorderManager(
     suspend fun startParkingRecording(audioEnabled: Boolean = false): DashCamResult<ActiveCameraRecording> =
         startRecording(RecordingProfiles.parking(audioEnabled = audioEnabled))
 
+    suspend fun startRecordingWithProfile(profile: RecordingProfile): DashCamResult<ActiveCameraRecording> =
+        startRecording(profile)
+
     suspend fun stopRecording(): DashCamResult<MediaFileEntity> {
         val active = activeRecording
             ?: return DashCamResult.Failure(

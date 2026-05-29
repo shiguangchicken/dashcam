@@ -1,29 +1,17 @@
 package com.firmmy.dashcam
 
-import android.app.Activity
 import android.content.Context
-import android.content.ContextWrapper
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.LifecycleOwner
-import com.firmmy.dashcam.core.common.DashCamResult
+import androidx.core.content.ContextCompat
 import com.firmmy.dashcam.core.common.RecordingMode
 import com.firmmy.dashcam.core.common.RecordingStatus
-import com.firmmy.dashcam.core.database.DashCamDatabaseProvider
-import com.firmmy.dashcam.core.database.MediaRepository
-import com.firmmy.dashcam.core.media.AndroidThumbnailGenerator
-import com.firmmy.dashcam.core.media.CameraRecorderManager
-import com.firmmy.dashcam.core.media.CameraXCameraFacade
-import com.firmmy.dashcam.core.media.DashCamMediaDirectories
-import com.firmmy.dashcam.core.media.DashCamMediaRepository
 import com.firmmy.dashcam.feature.recorder.RecorderScreen
 import com.firmmy.dashcam.feature.recorder.RecorderUiState
-import kotlinx.coroutines.launch
 
 @Composable
 fun CameraBackedRecorderScreen(
@@ -32,61 +20,56 @@ fun CameraBackedRecorderScreen(
     onViewFilesClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
 ) {
-    val lifecycleOwner = remember(context) { context.findActivity() as LifecycleOwner }
-    val manager = remember(context, lifecycleOwner) {
-        val database = DashCamDatabaseProvider.get(context)
-        val directories = DashCamMediaDirectories.fromContext(context)
-        CameraRecorderManager(
-            directories = directories,
-            mediaRepository = DashCamMediaRepository(
-                mediaRepository = MediaRepository(database.mediaFileDao()),
-                directories = directories,
-                thumbnailGenerator = AndroidThumbnailGenerator(),
-            ),
-            cameraFacade = CameraXCameraFacade(
-                context = context.applicationContext,
-                lifecycleOwner = lifecycleOwner,
-            ),
-        )
-    }
-    val scope = rememberCoroutineScope()
     var state by remember { mutableStateOf(RecorderUiState()) }
 
     RecorderScreen(
         modifier = modifier,
         state = state,
         onStartStopClick = {
-            scope.launch {
-                state = if (state.recordingStatus == RecordingStatus.IDLE) {
-                    when (state.mode) {
-                        RecordingMode.PARKING -> manager.startParkingRecording(audioEnabled = state.audioEnabled)
-                        else -> manager.startDrivingRecording(audioEnabled = state.audioEnabled)
-                    }.toRecordingState(state)
-                } else {
-                    when (manager.stopRecording()) {
-                        is DashCamResult.Success -> state.copy(
-                            recordingStatus = RecordingStatus.IDLE,
-                            currentSegmentMillis = 0L,
-                        )
-
-                        is DashCamResult.Failure -> state.copy(recordingStatus = RecordingStatus.IDLE)
-                    }
+            state = if (state.recordingStatus == RecordingStatus.IDLE) {
+                val action = when (state.mode) {
+                    RecordingMode.PARKING -> RecorderForegroundService.ACTION_START_PARKING
+                    else -> RecorderForegroundService.ACTION_START_DRIVING
                 }
+                context.startRecorderForegroundService(action, state.audioEnabled)
+                state.toRecordingState()
+            } else {
+                context.startRecorderForegroundService(RecorderForegroundService.ACTION_STOP)
+                state.copy(
+                    recordingStatus = RecordingStatus.IDLE,
+                    currentSegmentMillis = 0L,
+                )
             }
         },
         onDrivingModeClick = {
-            state = state.copy(mode = RecordingMode.DRIVING)
+            if (state.recordingStatus != RecordingStatus.IDLE) {
+                context.startRecorderForegroundService(RecorderForegroundService.ACTION_SWITCH_DRIVING)
+            }
+            state = state.copy(
+                mode = RecordingMode.DRIVING,
+                recordingStatus = if (state.recordingStatus == RecordingStatus.IDLE) {
+                    RecordingStatus.IDLE
+                } else {
+                    RecordingStatus.RECORDING_DRIVING
+                },
+            )
         },
         onParkingModeClick = {
-            state = state.copy(mode = RecordingMode.PARKING)
+            if (state.recordingStatus != RecordingStatus.IDLE) {
+                context.startRecorderForegroundService(RecorderForegroundService.ACTION_SWITCH_PARKING)
+            }
+            state = state.copy(
+                mode = RecordingMode.PARKING,
+                recordingStatus = if (state.recordingStatus == RecordingStatus.IDLE) {
+                    RecordingStatus.IDLE
+                } else {
+                    RecordingStatus.RECORDING_PARKING
+                },
+            )
         },
         onTakePhotoClick = {
-            scope.launch {
-                state = when (manager.takePhoto()) {
-                    is DashCamResult.Success -> state.copy(photoCount = state.photoCount + 1)
-                    is DashCamResult.Failure -> state
-                }
-            }
+            context.startRecorderForegroundService(RecorderForegroundService.ACTION_TAKE_PHOTO)
+            state = state.copy(photoCount = state.photoCount + 1)
         },
         onAudioToggleClick = {
             state = state.copy(audioEnabled = !state.audioEnabled)
@@ -99,22 +82,21 @@ fun CameraBackedRecorderScreen(
     )
 }
 
-private fun DashCamResult<*>.toRecordingState(previous: RecorderUiState): RecorderUiState =
-    when (this) {
-        is DashCamResult.Success -> previous.copy(
-            recordingStatus = when (previous.mode) {
-                RecordingMode.PARKING -> RecordingStatus.RECORDING_PARKING
-                else -> RecordingStatus.RECORDING_DRIVING
-            },
-            currentSegmentMillis = 1_000L,
-        )
+private fun RecorderUiState.toRecordingState(): RecorderUiState =
+    copy(
+        recordingStatus = when (mode) {
+            RecordingMode.PARKING -> RecordingStatus.RECORDING_PARKING
+            else -> RecordingStatus.RECORDING_DRIVING
+        },
+        currentSegmentMillis = 1_000L,
+    )
 
-        is DashCamResult.Failure -> previous.copy(recordingStatus = RecordingStatus.IDLE)
-    }
-
-private tailrec fun Context.findActivity(): Activity =
-    when (this) {
-        is Activity -> this
-        is ContextWrapper -> baseContext.findActivity()
-        else -> error("Recorder screen requires an Activity context")
-    }
+private fun Context.startRecorderForegroundService(
+    action: String,
+    audioEnabled: Boolean? = null,
+) {
+    ContextCompat.startForegroundService(
+        applicationContext,
+        RecorderForegroundService.commandIntent(applicationContext, action, audioEnabled),
+    )
+}

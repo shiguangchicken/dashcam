@@ -169,11 +169,11 @@ adb shell am start -n com.firmmy.dashcam/.MainActivity
 
 ### Task 10：实现分段录制
 
-- [ ] 支持 1/3/5/10 分钟分段配置。
-- [ ] 分段切换时保证上一段完成写入后再入库。
-- [ ] 异常中断后启动时扫描未入库文件并恢复索引。
-- [ ] 记录 `RecordSessionEntity`。
-- [ ] 添加分段调度和异常恢复测试。
+- [x] 支持 1/3/5/10 分钟分段配置。
+- [x] 分段切换时保证上一段完成写入后再入库。
+- [x] 异常中断后启动时扫描未入库文件并恢复索引。
+- [x] 记录 `RecordSessionEntity`。
+- [x] 添加分段调度和异常恢复测试。
 
 验收：
 
@@ -183,14 +183,20 @@ adb shell am start -n com.firmmy.dashcam/.MainActivity
 
 真机验收：设置 1 分钟分段，连续录制 3 分钟，生成 3 个左右可播放视频文件。
 
+验证记录：
+
+- [x] 2026-05-29 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew :core-media:testDebugUnitTest --tests '*Segment*'` 通过。
+- [x] 2026-05-29 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew testDebugUnitTest` 通过。
+- [x] 2026-05-29 Mi 10 真机使用 1 分钟分段启动驾驶模式录制，生成 `20260529_205501_001.mp4`、`20260529_205601_002.mp4`、`20260529_205702_003.mp4` 等分段文件；拉取 `20260529_205501_001.mp4` 后用 `ffprobe` 验证 `duration=59.341267`、`size=88971070`，文件可读。
+
 ### Task 11：实现 Foreground Service 与息屏录制
 
-- [ ] 在 `app` 或 `core-media` 实现 `RecorderForegroundService`。
-- [ ] Service 负责启动/停止 CameraX 录制、响应命令、管理通知。
-- [ ] 通知展示驾驶/停车模式、录音状态、剩余空间，并提供停止、拍照、切换模式 action。
-- [ ] 仅在启动/切换模式/保存文件等关键阶段短时间使用 WakeLock。
-- [ ] 支持广播或 service command API，供 adb、通知栏、远程 API 调用。
-- [ ] 添加 UI Automator 或 device smoke 脚本验证息屏后继续录制。
+- [x] 在 `app` 或 `core-media` 实现 `RecorderForegroundService`。
+- [x] Service 负责启动/停止 CameraX 录制、响应命令、管理通知。
+- [x] 通知展示驾驶/停车模式、录音状态、剩余空间，并提供停止、拍照、切换模式 action。
+- [x] 仅在启动/切换模式/保存文件等关键阶段短时间使用 WakeLock。
+- [x] 支持广播或 service command API，供 adb、通知栏、远程 API 调用。
+- [x] 添加 UI Automator 或 device smoke 脚本验证息屏后继续录制。
 
 验收：
 
@@ -204,8 +210,15 @@ adb shell am start -n com.firmmy.dashcam/.MainActivity
 adb shell input keyevent 26
 sleep 120
 adb shell input keyevent 26
-adb shell ls /sdcard/Android/data/com.example.dashcam/files/DashCam/videos
+adb shell ls /sdcard/Android/data/com.firmmy.dashcam/files/DashCam/videos
 ```
+
+验证记录：
+
+- [x] 2026-05-29 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew assembleDebug` 通过。
+- [x] 2026-05-29 Mi 10 真机安装 `app-debug.apk` 后授权 Camera、Record Audio、Post Notifications，通过 adb service command 启动 `RecorderForegroundService`，`dumpsys activity services` 确认 `isForeground=true`、通知 ID `1001`。
+- [x] 2026-05-29 Mi 10 真机执行息屏 120 秒验证，唤醒后 `DashCam/videos/driving/2026-05-29` 下存在 `20260529_205501_001.mp4`、`20260529_205601_002.mp4`、`20260529_205702_003.mp4`、`20260529_205802_004.mp4`，说明息屏期间继续录制并分段。
+- [x] 2026-05-29 增加 `test-robot/scripts/foreground_recording_smoke.sh`，用于安装、授权、启动 1 分钟分段、息屏等待、列出文件并停止服务。
 
 ### Task 12：实现媒体列表、本机播放与文件操作
 

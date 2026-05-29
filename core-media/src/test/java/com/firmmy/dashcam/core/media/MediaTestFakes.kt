@@ -25,6 +25,9 @@ class FakeMediaFileDao : MediaFileDao {
 
     override suspend fun getById(id: Long): MediaFileEntity? = media[id]
 
+    override suspend fun getByPath(path: String): MediaFileEntity? =
+        media.values.firstOrNull { it.path == path }
+
     override fun observeAll(includeDeleted: Boolean): Flow<List<MediaFileEntity>> =
         flowOf(media.values.filter { includeDeleted || !it.deleted })
 
@@ -90,6 +93,7 @@ class FakeCameraRecordingFacade(
         private set
     var activeFile: File? = null
         private set
+    val startedFiles = mutableListOf<File>()
     var photoCount = 0
         private set
     var failStart: DashCamError? = null
@@ -101,6 +105,7 @@ class FakeCameraRecordingFacade(
         failStart?.let { return DashCamResult.Failure(it) }
         startedProfile = profile
         activeFile = outputFile
+        startedFiles += outputFile
         return DashCamResult.Success(ActiveCameraRecording(outputFile, profile, startedAt))
     }
 

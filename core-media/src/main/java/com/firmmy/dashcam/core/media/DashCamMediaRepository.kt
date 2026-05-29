@@ -8,12 +8,16 @@ import com.firmmy.dashcam.core.database.MediaFileEntity
 import com.firmmy.dashcam.core.database.MediaRepository
 import java.io.File
 import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.flow.Flow
 
 class DashCamMediaRepository(
     private val mediaRepository: MediaRepository,
     private val directories: DashCamMediaDirectories,
     private val thumbnailGenerator: ThumbnailGenerator,
+    private val zoneId: ZoneId = ZoneId.systemDefault(),
 ) {
     fun observeVideos(): Flow<List<MediaFileEntity>> =
         mediaRepository.observeMediaByType(MediaType.VIDEO)
@@ -74,6 +78,54 @@ class DashCamMediaRepository(
         )
     }
 
+    suspend fun recoverUnindexedVideos(): DashCamResult<List<MediaFileEntity>> =
+        runCatching {
+            val paths = directories.ensureBaseDirectories()
+            val recovered = mutableListOf<MediaFileEntity>()
+            val searchRoots = listOf(
+                paths.drivingVideos to RecordingMode.DRIVING,
+                paths.parkingVideos to RecordingMode.PARKING,
+                paths.lockedVideos to RecordingMode.EVENT,
+            )
+            searchRoots.forEach { (directory, mode) ->
+                directory
+                    .walkTopDown()
+                    .filter { it.isFile && it.extension.equals("mp4", ignoreCase = true) && it.length() > 0L }
+                    .forEach { file ->
+                        recoverVideoIfNeeded(file, mode)?.let(recovered::add)
+                    }
+            }
+            recovered
+        }.fold(
+            onSuccess = { DashCamResult.Success(it) },
+            onFailure = { DashCamResult.Failure(DashCamError.Unknown(it.message ?: "Video recovery failed")) },
+        )
+
+    private suspend fun recoverVideoIfNeeded(
+        file: File,
+        mode: RecordingMode,
+    ): MediaFileEntity? {
+        mediaRepository.getMediaFileByPath(file.absolutePath)?.let { return null }
+        val createdAt = file.createdAtFromName() ?: Instant.ofEpochMilli(file.lastModified())
+        val profile = when (mode) {
+            RecordingMode.PARKING -> RecordingProfiles.parking(audioEnabled = false)
+            RecordingMode.EVENT -> RecordingProfiles.driving(audioEnabled = true).copy(mode = RecordingMode.EVENT)
+            else -> RecordingProfiles.driving(audioEnabled = true)
+        }
+        return when (
+            val result = registerCompletedVideo(
+                file = file,
+                profile = profile,
+                createdAt = createdAt,
+                durationMs = 0L,
+                locked = mode == RecordingMode.EVENT,
+            )
+        ) {
+            is DashCamResult.Success -> result.value
+            is DashCamResult.Failure -> null
+        }
+    }
+
     private suspend fun insertMedia(entity: MediaFileEntity): DashCamResult<MediaFileEntity> =
         runCatching {
             val id = mediaRepository.addMediaFile(entity)
@@ -107,4 +159,15 @@ class DashCamMediaRepository(
 
     private fun File.completedMediaFileOrFailure(): File? =
         takeIf { it.isFile && it.length() > 0L }
+
+    private fun File.createdAtFromName(): Instant? =
+        runCatching {
+            LocalDateTime.parse(nameWithoutExtension.take(15), fileTimestampFormatter)
+                .atZone(zoneId)
+                .toInstant()
+        }.getOrNull()
+
+    companion object {
+        private val fileTimestampFormatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
+    }
 }

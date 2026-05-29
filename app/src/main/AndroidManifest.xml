@@ -32,8 +32,22 @@
 
         <service
             android:name=".RecorderForegroundService"
-            android:exported="false"
+            android:exported="true"
             android:foregroundServiceType="camera|microphone|connectedDevice|dataSync" />
+
+        <receiver
+            android:name=".RecorderCommandReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.firmmy.dashcam.action.START_DRIVING" />
+                <action android:name="com.firmmy.dashcam.action.START_PARKING" />
+                <action android:name="com.firmmy.dashcam.action.STOP" />
+                <action android:name="com.firmmy.dashcam.action.TAKE_PHOTO" />
+                <action android:name="com.firmmy.dashcam.action.SWITCH_DRIVING" />
+                <action android:name="com.firmmy.dashcam.action.SWITCH_PARKING" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

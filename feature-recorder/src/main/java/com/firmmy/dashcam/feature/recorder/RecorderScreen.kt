@@ -36,6 +36,9 @@ data class RecorderUiState(
     val temperatureCelsius: Float = 36.5f,
     val audioEnabled: Boolean = true,
     val hotspotEnabled: Boolean = false,
+    val hotspotSsid: String = "",
+    val hotspotPassword: String = "",
+    val hotspotError: String = "",
     val photoCount: Int = 0,
 )
 
@@ -147,6 +150,27 @@ fun RecorderScreen(
             StatusRow("Temperature", "%.1f C".format(state.temperatureCelsius))
             StatusRow("Audio", if (state.audioEnabled) "On" else "Off")
             StatusRow("Hotspot", if (state.hotspotEnabled) "On" else "Off")
+            if (state.hotspotSsid.isNotBlank()) {
+                StatusRow(
+                    label = "Hotspot SSID",
+                    value = state.hotspotSsid,
+                    modifier = Modifier.testTag("hotspot_ssid_text"),
+                )
+            }
+            if (state.hotspotPassword.isNotBlank()) {
+                StatusRow(
+                    label = "Hotspot password",
+                    value = state.hotspotPassword,
+                    modifier = Modifier.testTag("hotspot_password_text"),
+                )
+            }
+            if (state.hotspotError.isNotBlank()) {
+                StatusRow(
+                    label = "Hotspot error",
+                    value = state.hotspotError,
+                    modifier = Modifier.testTag("hotspot_error_text"),
+                )
+            }
             StatusRow("Photos", state.photoCount.toString())
         }
 

@@ -2,6 +2,8 @@ package com.firmmy.dashcam
 
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -10,6 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import com.firmmy.dashcam.core.common.RecordingMode
 import com.firmmy.dashcam.core.common.RecordingStatus
+import com.firmmy.dashcam.core.network.AndroidLocalOnlyHotspotStarter
+import com.firmmy.dashcam.core.network.HotspotController
+import com.firmmy.dashcam.core.network.HotspotState
 import com.firmmy.dashcam.feature.recorder.RecorderScreen
 import com.firmmy.dashcam.feature.recorder.RecorderUiState
 
@@ -17,10 +22,48 @@ import com.firmmy.dashcam.feature.recorder.RecorderUiState
 fun CameraBackedRecorderScreen(
     context: Context,
     modifier: Modifier = Modifier,
+    onHotspotCredentialsChanged: (ssid: String, password: String) -> Unit = { _, _ -> },
     onViewFilesClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
 ) {
     var state by remember { mutableStateOf(RecorderUiState()) }
+    val applicationContext = context.applicationContext
+    val hotspotController = remember(applicationContext) {
+        HotspotController(AndroidLocalOnlyHotspotStarter(applicationContext))
+    }
+    val hotspotState by hotspotController.state.collectAsState()
+
+    LaunchedEffect(hotspotState) {
+        state = when (val currentHotspotState = hotspotState) {
+            HotspotState.Stopped -> state.copy(
+                hotspotEnabled = false,
+                hotspotError = "",
+            )
+
+            HotspotState.Starting -> state.copy(
+                hotspotEnabled = false,
+                hotspotError = "Starting",
+            )
+
+            is HotspotState.Started -> {
+                onHotspotCredentialsChanged(
+                    currentHotspotState.credentials.ssid,
+                    currentHotspotState.credentials.password,
+                )
+                state.copy(
+                    hotspotEnabled = true,
+                    hotspotSsid = currentHotspotState.credentials.ssid,
+                    hotspotPassword = currentHotspotState.credentials.password,
+                    hotspotError = "",
+                )
+            }
+
+            is HotspotState.Failed -> state.copy(
+                hotspotEnabled = false,
+                hotspotError = currentHotspotState.message,
+            )
+        }
+    }
 
     RecorderScreen(
         modifier = modifier,
@@ -75,7 +118,11 @@ fun CameraBackedRecorderScreen(
             state = state.copy(audioEnabled = !state.audioEnabled)
         },
         onHotspotToggleClick = {
-            state = state.copy(hotspotEnabled = !state.hotspotEnabled)
+            if (hotspotState is HotspotState.Started || hotspotState is HotspotState.Starting) {
+                hotspotController.stop()
+            } else {
+                hotspotController.start()
+            }
         },
         onViewFilesClick = onViewFilesClick,
         onSettingsClick = onSettingsClick,

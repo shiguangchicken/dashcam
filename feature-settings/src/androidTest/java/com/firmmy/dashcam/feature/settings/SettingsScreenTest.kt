@@ -39,6 +39,9 @@ class SettingsScreenTest {
             "settings_hotspot_ssid_field",
             "settings_wifi_password_field",
             "settings_pairing_token_field",
+            "settings_pairing_code_field",
+            "settings_refresh_pairing_button",
+            "settings_copy_pairing_button",
             "settings_save_button",
         ).forEach { tag ->
             composeRule.onNodeWithTag(tag).assertExists()
@@ -62,12 +65,14 @@ class SettingsScreenTest {
     private fun setSettingsContent(
         settings: DashCamSettings = DashCamSettings(deviceRole = DeviceRole.RECORDER),
         onSave: (DashCamSettings) -> Unit = {},
+        onRefreshPairing: (DashCamSettings) -> DashCamSettings = { it },
     ) {
         composeRule.setContent {
             MaterialTheme {
                 SettingsScreen(
                     settings = settings,
                     onSave = onSave,
+                    onRefreshPairing = onRefreshPairing,
                 )
             }
         }

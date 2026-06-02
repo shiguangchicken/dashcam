@@ -27,6 +27,7 @@ dependencies {
     implementation(project(":core-common"))
     implementation(project(":core-database"))
     implementation(project(":core-media"))
+    implementation(project(":core-network"))
     implementation(project(":feature-recorder"))
     implementation(project(":feature-remote"))
     implementation(project(":feature-settings"))

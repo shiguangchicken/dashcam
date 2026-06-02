@@ -35,6 +35,7 @@ import com.firmmy.dashcam.core.database.MediaRepository
 import com.firmmy.dashcam.core.media.AndroidThumbnailGenerator
 import com.firmmy.dashcam.core.media.DashCamMediaDirectories
 import com.firmmy.dashcam.core.media.DashCamMediaRepository
+import com.firmmy.dashcam.core.network.PairingCredentialManager
 import com.firmmy.dashcam.feature.recorder.MediaBrowserItem
 import com.firmmy.dashcam.feature.recorder.MediaBrowserScreen
 import com.firmmy.dashcam.feature.settings.SettingsScreen
@@ -70,8 +71,10 @@ class MainActivity : ComponentActivity() {
         val permissions = buildList {
             add(Manifest.permission.CAMERA)
             add(Manifest.permission.RECORD_AUDIO)
+            add(Manifest.permission.ACCESS_FINE_LOCATION)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 add(Manifest.permission.POST_NOTIFICATIONS)
+                add(Manifest.permission.NEARBY_WIFI_DEVICES)
             }
         }
         requestPermissions(permissions.toTypedArray(), REQUEST_DASHCAM_PERMISSIONS)
@@ -120,9 +123,10 @@ fun DashCamApp(
             role = selectedRole ?: DeviceRole.RECORDER,
             settings = settings,
             onSettingsSaved = { updatedSettings ->
-                onSettingsSaved(updatedSettings)
-                settings = updatedSettings
-                updatedSettings.deviceRole?.let { selectedRole = it }
+                val settingsWithPairing = updatedSettings.withPairingCredentials()
+                onSettingsSaved(settingsWithPairing)
+                settings = settingsWithPairing
+                settingsWithPairing.deviceRole?.let { selectedRole = it }
             },
         )
     }
@@ -212,6 +216,13 @@ private fun HomeScreen(
     if (role == DeviceRole.RECORDER && !showSettings) {
         CameraBackedRecorderScreen(
             context = LocalContext.current,
+            onHotspotCredentialsChanged = { ssid, password ->
+                val updatedSettings = settings.copy(
+                    hotspotSsid = ssid,
+                    hotspotPassword = password,
+                )
+                onSettingsSaved(updatedSettings)
+            },
             onViewFilesClick = { showFiles = true },
             onSettingsClick = { showSettings = true },
         )
@@ -238,8 +249,30 @@ private fun HomeScreen(
                     showSettings = false
                 }
             },
+            onRefreshPairing = { currentSettings ->
+                currentSettings.withNewPairingCredentials()
+            },
         )
     }
+}
+
+private fun DashCamSettings.withPairingCredentials(): DashCamSettings {
+    val credentials = PairingCredentialManager().ensure(
+        token = pairingToken,
+        pairingCode = pairingCode,
+    )
+    return copy(
+        pairingToken = credentials.token,
+        pairingCode = credentials.pairingCode,
+    )
+}
+
+private fun DashCamSettings.withNewPairingCredentials(): DashCamSettings {
+    val credentials = PairingCredentialManager().generate()
+    return copy(
+        pairingToken = credentials.token,
+        pairingCode = credentials.pairingCode,
+    )
 }
 
 @Composable

@@ -19,5 +19,6 @@ dependencies {
     implementation(libs.ktor.server.cio)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
+    implementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.junit)
 }

@@ -267,12 +267,12 @@ adb shell ls /sdcard/Android/data/com.firmmy.dashcam/files/DashCam/videos
 
 ### Task 14：实现热点控制
 
-- [ ] 在 `core-network` 实现 `HotspotController`。
-- [ ] 使用 `WifiManager.LocalOnlyHotspot` 启停本地热点。
-- [ ] 暴露热点状态、SSID、password。
-- [ ] UI 中明确展示系统生成的 SSID/密码，不承诺自定义密码。
-- [ ] 处理不支持 LocalOnlyHotspot、权限缺失、系统限制等错误。
-- [ ] 记录热点启停日志。
+- [x] 在 `core-network` 实现 `HotspotController`。
+- [x] 使用 `WifiManager.LocalOnlyHotspot` 启停本地热点。
+- [x] 暴露热点状态、SSID、password。
+- [x] UI 中明确展示系统生成的 SSID/密码，不承诺自定义密码。
+- [x] 处理不支持 LocalOnlyHotspot、权限缺失、系统限制等错误。
+- [x] 记录热点启停日志。
 
 验收：
 
@@ -282,19 +282,34 @@ adb shell ls /sdcard/Android/data/com.firmmy.dashcam/files/DashCam/videos
 
 真机验收：记录仪端能打开热点，另一台手机能连接，APP 显示 SSID/密码。
 
+验证记录：
+
+- [x] 2026-06-02 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew :core-network:testDebugUnitTest` 通过，覆盖热点启动成功、失败、停止、重复启动等状态。
+- [x] 2026-06-02 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew assembleDebug` 通过。
+- [x] 2026-06-02 Mi 10 真机安装 `app-debug.apk` 后授权 Camera、Record Audio、Post Notifications、Fine Location、Nearby Wi-Fi Devices，记录仪页点击 `Hotspot on` 成功打开 LocalOnlyHotspot，APP 显示系统生成 SSID `AndroidShare_9985` 和系统生成密码。
+- [ ] 2026-06-02 未覆盖第二台手机连接热点：当前 adb 环境只连接一台 Mi 10，缺少第二台可用于连接热点的设备。
+
 ### Task 15：实现配对 token 与基础认证
 
-- [ ] 首次启用远程访问时生成 token 和配对码。
-- [ ] 在设置页展示、刷新、复制配对信息。
-- [ ] HTTP 请求支持 `Authorization: Bearer <token>`。
-- [ ] 删除文件、切换模式、修改设置等写操作必须鉴权。
-- [ ] 添加认证成功、失败、缺失 token 测试。
+- [x] 首次启用远程访问时生成 token 和配对码。
+- [x] 在设置页展示、刷新、复制配对信息。
+- [x] HTTP 请求支持 `Authorization: Bearer <token>`。
+- [x] 删除文件、切换模式、修改设置等写操作必须鉴权。
+- [x] 添加认证成功、失败、缺失 token 测试。
 
 验收：
 
 ```bash
 ./gradlew :core-network:testDebugUnitTest --tests '*Auth*'
 ```
+
+验证记录：
+
+- [x] 2026-06-02 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew :core-network:testDebugUnitTest --tests '*Auth*'` 通过，覆盖 token 生成、保留已有凭据、认证成功、缺失 token、错误 scheme、错误 token、未配置 token。
+- [x] 2026-06-02 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew testDebugUnitTest` 通过。
+- [x] 2026-06-02 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew ktlintCheck` 通过。
+- [x] 2026-06-02 `./gradlew :feature-settings:connectedDebugAndroidTest` 在 Mi 10/MIUI 上被 `INSTALL_FAILED_USER_RESTRICTED` 拦截；按屏幕提示点击 `继续安装` 手动安装测试 APK 后，直接运行 `/home/meng/Android/Sdk/platform-tools/adb shell am instrument -w -r com.firmmy.dashcam.feature.settings.test/androidx.test.runner.AndroidJUnitRunner` 通过，2 个设置页 instrumentation 测试均通过。
+- [ ] 2026-06-02 未覆盖设置页“刷新/复制配对信息”的 connected 点击用例：Mi 10/MIUI + UTP 下该新增 Compose 用例启动后测试进程被系统结束；已由 `core-network` JVM 测试覆盖 token/配对码生成，设置页 connected 测试覆盖控件展示。
 
 ### Task 16：实现内置 HTTP/WebSocket 服务
 

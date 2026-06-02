@@ -69,6 +69,7 @@ class SettingsRepositoryTest {
                 wakeWord = "",
                 audioEnabled = false,
                 pairingToken = "token-1",
+                pairingCode = "123456",
             ),
         )
 
@@ -79,6 +80,7 @@ class SettingsRepositoryTest {
         assertEquals(SettingsDefaults.WAKE_WORD, saved.wakeWord)
         assertEquals(false, saved.audioEnabled)
         assertEquals("token-1", saved.pairingToken)
+        assertEquals("123456", saved.pairingCode)
     }
 
     @Test

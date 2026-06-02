@@ -21,6 +21,7 @@ data class DashCamSettings(
     val hotspotSsid: String = "",
     val hotspotPassword: String = "",
     val pairingToken: String = "",
+    val pairingCode: String = "",
 )
 
 object SettingsDefaults {
@@ -64,6 +65,7 @@ object SettingKeys {
     const val HOTSPOT_SSID = "hotspot_ssid"
     const val HOTSPOT_PASSWORD = "hotspot_password"
     const val PAIRING_TOKEN = "pairing_token"
+    const val PAIRING_CODE = "pairing_code"
 }
 
 class SettingsRepository(
@@ -143,6 +145,7 @@ class SettingsRepository(
             hotspotSsid = values[SettingKeys.HOTSPOT_SSID].orEmpty(),
             hotspotPassword = values[SettingKeys.HOTSPOT_PASSWORD].orEmpty(),
             pairingToken = values[SettingKeys.PAIRING_TOKEN].orEmpty(),
+            pairingCode = values[SettingKeys.PAIRING_CODE].orEmpty(),
         )
     }
 
@@ -164,6 +167,7 @@ class SettingsRepository(
             AppSettingEntity(SettingKeys.HOTSPOT_SSID, hotspotSsid),
             AppSettingEntity(SettingKeys.HOTSPOT_PASSWORD, hotspotPassword),
             AppSettingEntity(SettingKeys.PAIRING_TOKEN, pairingToken),
+            AppSettingEntity(SettingKeys.PAIRING_CODE, pairingCode),
         ).toSettings()
 
     private fun DashCamSettings.toEntities(): List<AppSettingEntity> =
@@ -184,6 +188,7 @@ class SettingsRepository(
             AppSettingEntity(SettingKeys.HOTSPOT_SSID, hotspotSsid),
             AppSettingEntity(SettingKeys.HOTSPOT_PASSWORD, hotspotPassword),
             AppSettingEntity(SettingKeys.PAIRING_TOKEN, pairingToken),
+            AppSettingEntity(SettingKeys.PAIRING_CODE, pairingCode),
         )
 
     private fun Map<String, String>.intChoice(key: String, allowed: Set<Int>, fallback: Int): Int =

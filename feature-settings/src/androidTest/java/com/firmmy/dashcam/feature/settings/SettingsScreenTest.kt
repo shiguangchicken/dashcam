@@ -62,6 +62,26 @@ class SettingsScreenTest {
         assertEquals(false, savedSettings?.audioEnabled)
     }
 
+    @Test
+    fun refreshPairingUpdatesEditableSettingsBeforeSave() {
+        var savedSettings: DashCamSettings? = null
+        setSettingsContent(
+            onSave = { savedSettings = it },
+            onRefreshPairing = {
+                it.copy(
+                    pairingToken = "new-token",
+                    pairingCode = "654321",
+                )
+            },
+        )
+
+        composeRule.onNodeWithTag("settings_refresh_pairing_button").performScrollTo().performClick()
+        composeRule.onNodeWithTag("settings_save_button").performScrollTo().performClick()
+
+        assertEquals("new-token", savedSettings?.pairingToken)
+        assertEquals("654321", savedSettings?.pairingCode)
+    }
+
     private fun setSettingsContent(
         settings: DashCamSettings = DashCamSettings(deviceRole = DeviceRole.RECORDER),
         onSave: (DashCamSettings) -> Unit = {},

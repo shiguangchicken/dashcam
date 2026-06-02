@@ -309,7 +309,7 @@ adb shell ls /sdcard/Android/data/com.firmmy.dashcam/files/DashCam/videos
 - [x] 2026-06-02 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew testDebugUnitTest` 通过。
 - [x] 2026-06-02 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew ktlintCheck` 通过。
 - [x] 2026-06-02 `./gradlew :feature-settings:connectedDebugAndroidTest` 在 Mi 10/MIUI 上被 `INSTALL_FAILED_USER_RESTRICTED` 拦截；按屏幕提示点击 `继续安装` 手动安装测试 APK 后，直接运行 `/home/meng/Android/Sdk/platform-tools/adb shell am instrument -w -r com.firmmy.dashcam.feature.settings.test/androidx.test.runner.AndroidJUnitRunner` 通过，2 个设置页 instrumentation 测试均通过。
-- [ ] 2026-06-02 未覆盖设置页“刷新/复制配对信息”的 connected 点击用例：Mi 10/MIUI + UTP 下该新增 Compose 用例启动后测试进程被系统结束；已由 `core-network` JVM 测试覆盖 token/配对码生成，设置页 connected 测试覆盖控件展示。
+- [x] 2026-06-02 追加重跑设置页“刷新配对信息并保存”单用例：恢复 `refreshPairingUpdatesEditableSettingsBeforeSave` 后，Mi 10 上手动安装测试 APK 并运行 `/home/meng/Android/Sdk/platform-tools/adb -s 4e348abc shell am instrument -w -r -e class com.firmmy.dashcam.feature.settings.SettingsScreenTest#refreshPairingUpdatesEditableSettingsBeforeSave com.firmmy.dashcam.feature.settings.test/androidx.test.runner.AndroidJUnitRunner` 通过，输出 `OK (1 test)`；V2324A 上同用例因系统阻止测试 Activity 前台启动仍返回 `Process crashed`。
 
 ### Task 16：实现内置 HTTP/WebSocket 服务
 

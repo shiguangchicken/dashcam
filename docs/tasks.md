@@ -287,7 +287,7 @@ adb shell ls /sdcard/Android/data/com.firmmy.dashcam/files/DashCam/videos
 - [x] 2026-06-02 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew :core-network:testDebugUnitTest` 通过，覆盖热点启动成功、失败、停止、重复启动等状态。
 - [x] 2026-06-02 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew assembleDebug` 通过。
 - [x] 2026-06-02 Mi 10 真机安装 `app-debug.apk` 后授权 Camera、Record Audio、Post Notifications、Fine Location、Nearby Wi-Fi Devices，记录仪页点击 `Hotspot on` 成功打开 LocalOnlyHotspot，APP 显示系统生成 SSID `AndroidShare_9985` 和系统生成密码。
-- [ ] 2026-06-02 未覆盖第二台手机连接热点：当前 adb 环境只连接一台 Mi 10，缺少第二台可用于连接热点的设备。
+- [x] 2026-06-02 追加双机验收：Mi 10 记录仪端重新打开 LocalOnlyHotspot，APP 显示系统生成 SSID `AndroidShare_7609` 和系统生成密码；V2324A 远端通过 `adb shell cmd wifi connect-network` 连接 `AndroidShare_7609` 成功，`cmd wifi status` 连续 10 次轮询均显示 `Supplicant state: COMPLETED`，并能 ping 通热点网关，随后已在 V2324A 上忘记该临时网络。
 
 ### Task 15：实现配对 token 与基础认证
 

@@ -38,6 +38,7 @@ import com.firmmy.dashcam.core.media.DashCamMediaRepository
 import com.firmmy.dashcam.core.network.PairingCredentialManager
 import com.firmmy.dashcam.feature.recorder.MediaBrowserItem
 import com.firmmy.dashcam.feature.recorder.MediaBrowserScreen
+import com.firmmy.dashcam.feature.remote.RemoteViewerScreen
 import com.firmmy.dashcam.feature.settings.SettingsScreen
 import com.firmmy.dashcam.ui.theme.DashCamTheme
 import kotlinx.coroutines.Dispatchers
@@ -204,10 +205,23 @@ private fun HomeScreen(
 ) {
     var showSettings by remember { mutableStateOf(role != DeviceRole.RECORDER) }
     var showFiles by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    if (role == DeviceRole.REMOTE && !showSettings) {
+        RemoteViewerScreen(
+            client = remember(context, settings.pairingToken) {
+                AppRemoteViewerClient(
+                    context = context,
+                    tokenProvider = { settings.pairingToken },
+                )
+            },
+        )
+        return
+    }
 
     if (role == DeviceRole.RECORDER && showFiles) {
         RecorderMediaBrowserScreen(
-            context = LocalContext.current,
+            context = context,
             onBackClick = { showFiles = false },
         )
         return
@@ -215,7 +229,7 @@ private fun HomeScreen(
 
     if (role == DeviceRole.RECORDER && !showSettings) {
         CameraBackedRecorderScreen(
-            context = LocalContext.current,
+            context = context,
             onHotspotCredentialsChanged = { ssid, password ->
                 val updatedSettings = settings.copy(
                     hotspotSsid = ssid,
@@ -245,7 +259,7 @@ private fun HomeScreen(
             settings = settings.copy(deviceRole = role),
             onSave = { updatedSettings ->
                 onSettingsSaved(updatedSettings)
-                if (updatedSettings.deviceRole == DeviceRole.RECORDER) {
+                if (updatedSettings.deviceRole == DeviceRole.RECORDER || updatedSettings.deviceRole == DeviceRole.REMOTE) {
                     showSettings = false
                 }
             },

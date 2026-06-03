@@ -30,13 +30,17 @@ class AndroidNsdRemoteServiceAdvertiser(
 
             override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) = Unit
         }
-        val serviceInfo = NsdServiceInfo().apply {
-            serviceType = NsdRemoteServiceDiscovery.SERVICE_TYPE
-            setServiceName(serviceName)
-            this.port = port
-        }
+        val serviceInfo = NsdServiceInfoFactory.create(
+            NsdRemoteServiceDiscovery.SERVICE_TYPE,
+            normalizedNsdServiceName(serviceName),
+            port,
+        )
         registrationListener = listener
-        nsdManager.registerService(serviceInfo, NsdManager.PROTOCOL_DNS_SD, listener)
+        runCatching {
+            nsdManager.registerService(serviceInfo, NsdManager.PROTOCOL_DNS_SD, listener)
+        }.onFailure {
+            registrationListener = null
+        }
     }
 
     override fun unregister() {
@@ -50,3 +54,6 @@ class AndroidNsdRemoteServiceAdvertiser(
         const val SERVICE_NAME = "DashCam"
     }
 }
+
+internal fun normalizedNsdServiceName(name: String): String =
+    name.trim().ifBlank { AndroidNsdRemoteServiceAdvertiser.SERVICE_NAME }

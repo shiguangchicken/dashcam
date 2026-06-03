@@ -35,4 +35,10 @@ class RemoteServiceDiscoveryTest {
     fun manualDiscoveryReturnsNullForBlankHost() = runBlocking {
         assertNull(ManualRemoteServiceDiscovery(hostProvider = { " " }).discover())
     }
+
+    @Test
+    fun nsdServiceNameFallsBackWhenBlank() {
+        assertEquals(AndroidNsdRemoteServiceAdvertiser.SERVICE_NAME, normalizedNsdServiceName("  "))
+        assertEquals("DashCam Living Room", normalizedNsdServiceName("  DashCam Living Room  "))
+    }
 }

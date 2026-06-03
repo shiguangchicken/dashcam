@@ -342,7 +342,7 @@ curl -H "Authorization: Bearer $TOKEN" "http://$DASHCAM_IP:8080/api/media?type=v
 
 - [x] 2026-06-03 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew :core-network:testDebugUnitTest` 通过；覆盖 Bearer 鉴权、`GET /api/status`、`POST /api/command`、媒体列表、HTTP Range `GET /api/media/{id}/stream`、`GET /api/settings`、`DELETE /api/media/{id}`、WebSocket 初始状态事件、远程 client 基础调用。
 - [x] 2026-06-03 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew assembleDebug` 通过；记录仪端已接入热点开启后启动 8080 HTTP server 和 NSD 广播、热点关闭后停止 server。
-- [ ] 2026-06-03 未执行双机真机 `curl http://$DASHCAM_IP:8080/api/status` / `curl .../api/media` 验收；原因是本轮未进行真实设备热点连接和第二设备 curl 联调，留待 Task 19 双机 smoke 脚本或下一次真机联调补测。
+- [x] 2026-06-03 追加双机真机验收：Mi 10 记录仪端安装修复后 APK，打开 LocalOnlyHotspot 成功，UI 显示 SSID `AndroidShare_6428`、密码 `5hsg4z9q44qdsac`；logcat 显示 8080 HTTP server 可用且 NSD 注册 `DashCam` / `_dashcam._tcp.` 成功。V2324A 查看端通过 `adb shell cmd wifi connect-network AndroidShare_6428 wpa2 5hsg4z9q44qdsac` 接入热点，因系统 shell 无 curl/wget，使用 `nc` 手工发送 HTTP 请求，`GET /api/status` 返回 `HTTP/1.1 200 OK`，`GET /api/media?type=video` 返回 `HTTP/1.1 200 OK` 和 `{"items":[]}`。
 
 ### Task 17：实现远程 API Client 与服务发现
 
@@ -361,7 +361,8 @@ curl -H "Authorization: Bearer $TOKEN" "http://$DASHCAM_IP:8080/api/media?type=v
 验证记录：
 
 - [x] 2026-06-03 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew :core-network:testDebugUnitTest` 通过；覆盖 `RemoteDashCamClient` 对 status、media、command 的调用，以及手动 IP、组合 fallback 服务发现。
-- [ ] 2026-06-03 未执行真实 Android NSD/mDNS 发现与默认网关探测联调；原因是本轮未进行第二台查看端连接热点后的发现流程，留待 Task 18/19 远程查看 UI 与双机 smoke 流程补测。
+- [x] 2026-06-03 追加真实热点网络验证：Mi 10 热点启动后 logcat 显示 `NsdService` 注册 `DashCam` / `_dashcam._tcp.` 成功；V2324A 连接热点后路由为 `192.168.62.0/24 dev wlan0 src 192.168.62.61`，使用记录仪热点地址 `192.168.62.74:8080` 可访问远程 API。
+- [ ] 2026-06-03 未执行查看端 APP 内真实 NSD/mDNS discovery 与默认网关 fallback UI 流程；原因是 V2324A 重新安装当前 APK 时系统安装器显示“安装失败：因系统原因安装失败”，无法验证新版远程查看 UI 的服务发现入口。
 
 ### Task 18：实现远程查看模式 UI
 
@@ -382,6 +383,7 @@ curl -H "Authorization: Bearer $TOKEN" "http://$DASHCAM_IP:8080/api/media?type=v
 
 - [x] 2026-06-03 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew :feature-remote:testDebugUnitTest assembleDebug ktlintCheck` 通过；覆盖远程媒体类型选择和日期格式逻辑，远程 UI 编译接入真实 client/discovery 通过。
 - [ ] 2026-06-03 `./gradlew :feature-remote:connectedDebugAndroidTest` 在 Mi 10 与 V2324A 上均卡在首个 Compose instrumentation 用例，手动 force-stop 后 Gradle 报 `Instrumentation run failed due to Process crashed`；为避免后续验收卡死，暂移除该 connected Compose 测试，保留 JVM 逻辑测试，后续需针对 library Compose test Activity/设备限制单独处理。
+- [ ] 2026-06-03 未执行 V2324A 新版远程查看模式 UI 真机验收；原因是 `adb install -r app/build/outputs/apk/debug/app-debug.apk` 首次被系统安装确认中断，按屏幕“重新安装”后安装器显示“安装失败：因系统原因安装失败”，后续双机验收改用查看端 shell `nc` 验证 API。
 
 ### Task 19：完成双机联调脚本与验收流程
 
@@ -390,7 +392,8 @@ curl -H "Authorization: Bearer $TOKEN" "http://$DASHCAM_IP:8080/api/media?type=v
 - [x] 记录仪端安装、启动、选择记录仪模式、打开热点和 HTTP server。
 - [x] 查看端安装、启动、进入远程查看模式。
 - [x] 对 Wi-Fi 连接步骤提供人工提示或兼容 `adb shell cmd wifi connect-network` 的自动路径。
-- [ ] 验证查看端能读取状态、查看媒体、触发拍照、播放视频。
+- [x] 验证查看端能读取状态、查看媒体、触发拍照。
+- [ ] 验证查看端能播放视频。
 
 验收：
 
@@ -401,7 +404,8 @@ RECORDER_SERIAL=<serial-a> VIEWER_SERIAL=<serial-b> tools/two_device_smoke_test.
 验证记录：
 
 - [x] 2026-06-03 创建 `tools/two_device_smoke_test.sh` 并设置可执行权限；脚本支持双设备安装、权限授权、启动 APP、热点手动/自动连接提示、`/api/status`、`/api/media?type=video` 和远程拍照 command 验证，并在安装失败时提示点击“继续安装”。
-- [ ] 2026-06-03 未执行完整双机 smoke；原因是本轮未进行真实记录仪热点开启、查看端接入、token/IP 输入后的端到端联调，视频播放仍需通过 Task 28 或下一次双机验收补测。
+- [x] 2026-06-03 追加双机 API smoke：Mi 10 记录仪端热点 `AndroidShare_6428` 启动成功，V2324A 查看端连接后连续轮询 `cmd wifi status` 均显示连接到 `AndroidShare_6428`、`Supplicant state: COMPLETED`；从查看端使用 `nc` 访问 `192.168.62.74:8080`，`GET /api/status`、`GET /api/media?type=video`、`GET /api/media?type=photo` 均返回 `HTTP/1.1 200 OK`，`POST /api/command {"command":"photo"}` 返回 `{"ok":true,"message":"OK"}`，随后照片列表出现新照片 `20260603_222254.jpg`。
+- [ ] 2026-06-03 未验证远程视频播放/Range 实际播放；原因是本次双机 smoke 中 `GET /api/media?type=video` 返回空列表 `{"items":[]}`，没有可用于播放的真实视频条目，留待生成视频样本后补测。
 
 ## 阶段 4：语音控制
 

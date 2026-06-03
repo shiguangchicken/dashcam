@@ -2,6 +2,7 @@ package com.firmmy.dashcam
 
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -10,6 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import com.firmmy.dashcam.core.common.DashCamCommand
 import com.firmmy.dashcam.core.common.RecordingMode
 import com.firmmy.dashcam.core.common.RecordingStatus
 import com.firmmy.dashcam.core.network.AndroidLocalOnlyHotspotStarter
@@ -31,14 +33,40 @@ fun CameraBackedRecorderScreen(
     val hotspotController = remember(applicationContext) {
         HotspotController(AndroidLocalOnlyHotspotStarter(applicationContext))
     }
+    val remoteServerController = remember(applicationContext) {
+        AppRemoteServerController(applicationContext) { command ->
+            when (command) {
+                DashCamCommand.StartHotspot -> {
+                    hotspotController.start().isSuccess
+                }
+
+                DashCamCommand.StopHotspot -> {
+                    hotspotController.stop()
+                    true
+                }
+
+                else -> false
+            }
+        }
+    }
     val hotspotState by hotspotController.state.collectAsState()
+
+    DisposableEffect(remoteServerController) {
+        onDispose {
+            remoteServerController.stop()
+            hotspotController.stop()
+        }
+    }
 
     LaunchedEffect(hotspotState) {
         state = when (val currentHotspotState = hotspotState) {
-            HotspotState.Stopped -> state.copy(
-                hotspotEnabled = false,
-                hotspotError = "",
-            )
+            HotspotState.Stopped -> {
+                remoteServerController.stop()
+                state.copy(
+                    hotspotEnabled = false,
+                    hotspotError = "",
+                )
+            }
 
             HotspotState.Starting -> state.copy(
                 hotspotEnabled = false,
@@ -46,6 +74,7 @@ fun CameraBackedRecorderScreen(
             )
 
             is HotspotState.Started -> {
+                remoteServerController.start()
                 onHotspotCredentialsChanged(
                     currentHotspotState.credentials.ssid,
                     currentHotspotState.credentials.password,

@@ -22,6 +22,8 @@ class RecorderCommandReceiver : BroadcastReceiver() {
             RecorderForegroundService.ACTION_TAKE_PHOTO,
             RecorderForegroundService.ACTION_SWITCH_DRIVING,
             RecorderForegroundService.ACTION_SWITCH_PARKING,
+            RecorderForegroundService.ACTION_ENABLE_AUDIO,
+            RecorderForegroundService.ACTION_DISABLE_AUDIO,
         )
     }
 }

@@ -86,6 +86,15 @@ class RecorderForegroundService : Service(), LifecycleOwner {
             ACTION_TAKE_PHOTO -> dependencies().controller.takePhoto()
             ACTION_SWITCH_DRIVING -> startOrSwitch(RecordingMode.DRIVING, intent)
             ACTION_SWITCH_PARKING -> startOrSwitch(RecordingMode.PARKING, intent)
+            ACTION_ENABLE_AUDIO -> setAudioEnabled(true)
+            ACTION_DISABLE_AUDIO -> setAudioEnabled(false)
+        }
+        if ((action == ACTION_ENABLE_AUDIO || action == ACTION_DISABLE_AUDIO) &&
+            currentStatus == RecordingStatus.IDLE
+        ) {
+            stopForegroundCompat()
+            stopSelf()
+            return
         }
         if (action != ACTION_STOP) {
             updateNotification()
@@ -124,6 +133,13 @@ class RecorderForegroundService : Service(), LifecycleOwner {
         } else if (result is DashCamResult.Failure) {
             Log.w(TAG, "Recording command failed: ${result.error.message}")
         }
+    }
+
+    private suspend fun setAudioEnabled(enabled: Boolean) {
+        val repository = dependencies().settingsRepository
+        val settings = repository.getSettings()
+        repository.saveSettings(settings.copy(audioEnabled = enabled))
+        audioEnabled = enabled
     }
 
     private suspend fun stopRecording() {
@@ -282,6 +298,8 @@ class RecorderForegroundService : Service(), LifecycleOwner {
         const val ACTION_TAKE_PHOTO = "com.firmmy.dashcam.action.TAKE_PHOTO"
         const val ACTION_SWITCH_DRIVING = "com.firmmy.dashcam.action.SWITCH_DRIVING"
         const val ACTION_SWITCH_PARKING = "com.firmmy.dashcam.action.SWITCH_PARKING"
+        const val ACTION_ENABLE_AUDIO = "com.firmmy.dashcam.action.ENABLE_AUDIO"
+        const val ACTION_DISABLE_AUDIO = "com.firmmy.dashcam.action.DISABLE_AUDIO"
         const val EXTRA_SEGMENT_DURATION_MINUTES = "com.firmmy.dashcam.extra.SEGMENT_DURATION_MINUTES"
 
         private const val CHANNEL_ID = "dashcam_recording"

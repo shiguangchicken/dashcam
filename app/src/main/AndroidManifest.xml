@@ -48,6 +48,8 @@
                 <action android:name="com.firmmy.dashcam.action.TAKE_PHOTO" />
                 <action android:name="com.firmmy.dashcam.action.SWITCH_DRIVING" />
                 <action android:name="com.firmmy.dashcam.action.SWITCH_PARKING" />
+                <action android:name="com.firmmy.dashcam.action.ENABLE_AUDIO" />
+                <action android:name="com.firmmy.dashcam.action.DISABLE_AUDIO" />
             </intent-filter>
         </receiver>
     </application>

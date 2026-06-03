@@ -220,7 +220,7 @@ private fun HomeScreen(
                 val updatedSettings = settings.copy(
                     hotspotSsid = ssid,
                     hotspotPassword = password,
-                )
+                ).withPairingCredentials()
                 onSettingsSaved(updatedSettings)
             },
             onViewFilesClick = { showFiles = true },

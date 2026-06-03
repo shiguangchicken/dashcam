@@ -313,17 +313,17 @@ adb shell ls /sdcard/Android/data/com.firmmy.dashcam/files/DashCam/videos
 
 ### Task 16：实现内置 HTTP/WebSocket 服务
 
-- [ ] 使用 Ktor Server 或 NanoHTTPD 实现 `EmbeddedHttpServer`。
-- [ ] 实现 `GET /api/status`。
-- [ ] 实现 `POST /api/command`。
-- [ ] 实现 `GET /api/media?type=video&date=...`。
-- [ ] 实现 `GET /api/media/{id}/thumbnail`。
-- [ ] 实现 `GET /api/media/{id}/stream`，支持 HTTP Range。
-- [ ] 实现 `GET /api/media/{id}/download`。
-- [ ] 实现 `DELETE /api/media/{id}`。
-- [ ] 实现 `GET /api/settings`、`PUT /api/settings`。
-- [ ] 实现 `WS /ws/events` 推送状态和录制事件。
-- [ ] 使用 fake repository 添加 API 测试。
+- [x] 使用 Ktor Server 或 NanoHTTPD 实现 `EmbeddedHttpServer`。
+- [x] 实现 `GET /api/status`。
+- [x] 实现 `POST /api/command`。
+- [x] 实现 `GET /api/media?type=video&date=...`。
+- [x] 实现 `GET /api/media/{id}/thumbnail`。
+- [x] 实现 `GET /api/media/{id}/stream`，支持 HTTP Range。
+- [x] 实现 `GET /api/media/{id}/download`。
+- [x] 实现 `DELETE /api/media/{id}`。
+- [x] 实现 `GET /api/settings`、`PUT /api/settings`。
+- [x] 实现 `WS /ws/events` 推送状态和录制事件。
+- [x] 使用 fake repository 添加 API 测试。
 
 验收：
 
@@ -338,19 +338,30 @@ curl -H "Authorization: Bearer $TOKEN" http://$DASHCAM_IP:8080/api/status
 curl -H "Authorization: Bearer $TOKEN" "http://$DASHCAM_IP:8080/api/media?type=video"
 ```
 
+验证记录：
+
+- [x] 2026-06-03 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew :core-network:testDebugUnitTest` 通过；覆盖 Bearer 鉴权、`GET /api/status`、`POST /api/command`、媒体列表、HTTP Range `GET /api/media/{id}/stream`、`GET /api/settings`、`DELETE /api/media/{id}`、WebSocket 初始状态事件、远程 client 基础调用。
+- [x] 2026-06-03 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew assembleDebug` 通过；记录仪端已接入热点开启后启动 8080 HTTP server 和 NSD 广播、热点关闭后停止 server。
+- [ ] 2026-06-03 未执行双机真机 `curl http://$DASHCAM_IP:8080/api/status` / `curl .../api/media` 验收；原因是本轮未进行真实设备热点连接和第二设备 curl 联调，留待 Task 19 双机 smoke 脚本或下一次真机联调补测。
+
 ### Task 17：实现远程 API Client 与服务发现
 
-- [ ] 在 `core-network` 实现 HTTP client。
-- [ ] 支持 status、command、media、thumbnail、stream、download、delete、settings API。
-- [ ] 实现服务发现：优先 NSD/mDNS，备用默认网关 + 8080，最后支持手动 IP。
-- [ ] 处理连接超时、认证失败、服务不可达。
-- [ ] 添加 client fake 和服务发现测试。
+- [x] 在 `core-network` 实现 HTTP client。
+- [x] 支持 status、command、media、thumbnail、stream、download、delete、settings API。
+- [x] 实现服务发现：优先 NSD/mDNS，备用默认网关 + 8080，最后支持手动 IP。
+- [x] 处理连接超时、认证失败、服务不可达。
+- [x] 添加 client fake 和服务发现测试。
 
 验收：
 
 ```bash
 ./gradlew :core-network:testDebugUnitTest --tests '*Remote*'
 ```
+
+验证记录：
+
+- [x] 2026-06-03 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew :core-network:testDebugUnitTest` 通过；覆盖 `RemoteDashCamClient` 对 status、media、command 的调用，以及手动 IP、组合 fallback 服务发现。
+- [ ] 2026-06-03 未执行真实 Android NSD/mDNS 发现与默认网关探测联调；原因是本轮未进行第二台查看端连接热点后的发现流程，留待 Task 18/19 远程查看 UI 与双机 smoke 流程补测。
 
 ### Task 18：实现远程查看模式 UI
 

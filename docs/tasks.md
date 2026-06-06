@@ -317,6 +317,7 @@ adb shell ls /sdcard/Android/data/com.firmmy.dashcam/files/DashCam/videos
 - [ ] 2026-06-06 未完整自动化：查看端物理扫描记录仪屏幕 QR code、Android 系统 Wi-Fi 连接确认弹窗、扫描后自动进入远程首页未通过 ADB 端到端执行；原因是 ADB 无法把 Samsung 摄像头物理对准 Mi 10 屏幕，且 `cmd wifi connect-network` 在 `RFCRA0JHHYW` 返回 shell 权限异常。已用 API 与 UI 局部验证替代。
 - [x] 2026-06-07 修复查看端相机预览可见但无法识别 QR：将扫描器从 Play-services ML Kit 条码模型改为离线 ZXing YUV 帧解码，避免条码模型未下载/不可用导致只显示预览不出结果；同时把记录仪 QR 显示尺寸从 220dp 增加到 280dp。已运行 `./gradlew :app:compileDebugKotlin :core-network:testDebugUnitTest`、`./gradlew assembleDebug`、`./gradlew ktlintCheck`、`git diff --check` 均通过，并已在 Mi 10 `4e348abc`、Samsung `RFCRA0JHHYW` 安装新版 debug APK。
 - [ ] 2026-06-07 未完整自动化：新版 ZXing 扫描器的物理扫码识别需用户在两台手机上手持重试确认；ADB 不能模拟查看端摄像头对准记录仪屏幕 QR。
+- [x] 2026-06-07 修复查看端点击 `Connect to recorder Wi-Fi` 崩溃：`RFCRA0JHHYW` crash logcat 显示 `ConnectivityManager.requestNetwork` 抛出 `SecurityException`，原因是未声明 `android.permission.CHANGE_NETWORK_STATE`。已添加权限并对 OEM 拒绝请求增加异常兜底，`./gradlew :app:compileDebugKotlin assembleDebug` 通过；新版 APK 已安装到 `RFCRA0JHHYW`，`dumpsys package com.firmmy.dashcam` 显示 `android.permission.CHANGE_NETWORK_STATE: granted=true`。
 
 ### Task 16：实现内置 HTTP/WebSocket 服务
 

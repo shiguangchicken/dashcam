@@ -30,9 +30,9 @@ class RecorderWifiConnector(context: Context) {
         }
 
     fun release() {
-        callback?.let(connectivityManager::unregisterNetworkCallback)
+        callback?.let { runCatching { connectivityManager.unregisterNetworkCallback(it) } }
         callback = null
-        connectivityManager.bindProcessToNetwork(null)
+        runCatching { connectivityManager.bindProcessToNetwork(null) }
     }
 
     private suspend fun connectWithSpecifier(payload: RemoteConnectionPayload): Boolean {
@@ -65,7 +65,13 @@ class RecorderWifiConnector(context: Context) {
                 continuation.invokeOnCancellation {
                     runCatching { connectivityManager.unregisterNetworkCallback(networkCallback) }
                 }
-                connectivityManager.requestNetwork(request, networkCallback)
+                runCatching {
+                    connectivityManager.requestNetwork(request, networkCallback)
+                }.onFailure {
+                    callback = null
+                    runCatching { connectivityManager.unregisterNetworkCallback(networkCallback) }
+                    if (continuation.isActive) continuation.resume(false)
+                }
             }
         } ?: false
     }

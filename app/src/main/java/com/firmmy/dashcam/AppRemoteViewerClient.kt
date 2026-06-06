@@ -25,11 +25,12 @@ class AppRemoteViewerClient(
     private var client: RemoteDashCamClient? = null
 
     override suspend fun connect(manualHost: String): Boolean {
+        val manualDiscovery = ManualRemoteServiceDiscovery(hostProvider = { manualHost })
         val discovery = CompositeRemoteServiceDiscovery(
             listOf(
+                manualDiscovery,
                 NsdRemoteServiceDiscovery(applicationContext),
                 WifiGatewayRemoteServiceDiscovery(applicationContext),
-                ManualRemoteServiceDiscovery(hostProvider = { manualHost }),
             ),
         )
         val endpoint = discovery.discover() ?: manualHost.manualEndpoint() ?: return false

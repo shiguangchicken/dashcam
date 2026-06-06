@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-variant": "#31353c",
+                    "surface-tint": "#ffb693",
+                    "on-primary-fixed": "#351000",
+                    "on-primary": "#561f00",
+                    "secondary-container": "#00a2fd",
+                    "on-secondary-fixed": "#001d33",
+                    "outline-variant": "#5a4136",
+                    "secondary": "#98cbff",
+                    "primary-fixed-dim": "#ffb693",
+                    "surface-dim": "#10141a",
+                    "error-container": "#93000a",
+                    "on-tertiary-container": "#003a1a",
+                    "tertiary-fixed": "#6bfe9c",
+                    "surface-container-lowest": "#0a0e14",
+                    "surface-container-highest": "#31353c",
+                    "inverse-primary": "#a04100",
+                    "surface-bright": "#353940",
+                    "on-background": "#dfe2eb",
+                    "surface": "#10141a",
+                    "outline": "#a98a7d",
+                    "tertiary-container": "#00b05c",
+                    "inverse-on-surface": "#2d3137",
+                    "on-tertiary-fixed": "#00210c",
+                    "on-secondary": "#003354",
+                    "on-surface-variant": "#e2bfb0",
+                    "on-error": "#690005",
+                    "on-primary-container": "#572000",
+                    "on-surface": "#dfe2eb",
+                    "error": "#ffb4ab",
+                    "surface-container-high": "#262a31",
+                    "primary-fixed": "#ffdbcc",
+                    "on-primary-fixed-variant": "#7a3000",
+                    "background": "#10141a",
+                    "tertiary": "#4ae183",
+                    "on-tertiary-fixed-variant": "#005228",
+                    "primary-container": "#ff6b00",
+                    "on-secondary-container": "#003558",
+                    "on-error-container": "#ffdad6",
+                    "secondary-fixed-dim": "#98cbff",
+                    "surface-container": "#1c2026",
+                    "secondary-fixed": "#cfe5ff",
+                    "on-secondary-fixed-variant": "#004a77",
+                    "inverse-surface": "#dfe2eb",
+                    "primary": "#ffb693",
+                    "tertiary-fixed-dim": "#4ae183",
+                    "surface-container-low": "#181c22",
+                    "on-tertiary": "#003919"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "edge-margin": "24px",
+                    "gutter": "16px",
+                    "container-padding": "12px",
+                    "touch-target-min": "48px",
+                    "unit": "4px"
+            },
+            "fontFamily": {
+                    "label-caps": ["Inter"],
+                    "data-lg": ["JetBrains Mono"],
+                    "headline-md": ["Inter"],
+                    "data-md": ["JetBrains Mono"],
+                    "body-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-sm": ["Inter"],
+                    "headline-lg": ["Inter"]
+            },
+            "fontSize": {
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "data-lg": ["20px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "data-md": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .pulse-recording {
+            animation: pulse-red 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0.7); }
+            50% { box-shadow: 0 0 0 20px rgba(255, 107, 0, 0); }
+        }
+        .glass-panel {
+            background: rgba(16, 20, 26, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background min-h-screen overflow-hidden font-body-md">
+<!-- Full-screen Camera Preview Background -->
+<div class="fixed inset-0 z-0">
+<img alt="Live Dashcam View" class="w-full h-full object-cover grayscale-[0.2] brightness-[0.7]" data-alt="A first-person view from a high-definition dashboard camera driving down a sleek, modern neon-lit city highway at twilight. The scene features smooth asphalt reflecting blue and orange city lights, with blurred motion of urban architecture in the distance. The lighting is cinematic, dominated by deep blues, blacks, and sharp Safety Orange accents from vehicle taillights. The atmosphere is high-tech, clean, and utilitarian, mimicking a professional vehicle telematics display." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDyvA9cZVgKtEr4aqQY7C0QI0iZip_kB1mR8t6aeZJOC93MhlDKB7LuF2xq7io-9F-dezot6tNc6sJKqkSXlVIlFJHXn1cCD10kUgza9N1T4S-638qtpTD0DVBeWh_ngEyXD5prkm84YB1RcX8mZ7blYzu2qQfdNijSzUTb9pAH1Jqz8KWlxMT7nSx0Ooiv2_CSSFyU-ROgBhQcoVthjfBfyY9x6ExAazjjE2Ptd57Yt3U5PTdEX16XAaL9C51LM2wt48jmgI2tw5w"/>
+</div>
+<!-- Top AppBar (JSON Content) -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-edge-margin h-touch-target-min bg-surface/80 dark:bg-surface/80 backdrop-blur-md border-b border-white/10">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" data-icon="videocam">videocam</span>
+<h1 class="font-headline-md text-headline-md font-bold text-primary dark:text-primary tracking-tight">DroidDash</h1>
+</div>
+<div class="flex items-center gap-4">
+<!-- Telemetry Overlay (Status Bar) -->
+<div class="flex items-center gap-4 glass-panel px-4 py-1.5 rounded-full">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-sm" data-icon="thermostat">thermostat</span>
+<span class="font-data-md text-data-md">42°C</span>
+</div>
+<div class="h-4 w-px bg-white/10"></div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-tertiary text-sm" data-icon="bolt">bolt</span>
+<span class="font-data-md text-data-md">Charging</span>
+</div>
+<div class="h-4 w-px bg-white/10"></div>
+<span class="material-symbols-outlined text-primary dark:text-primary" data-icon="sensors">sensors</span>
+<div class="h-4 w-px bg-white/10"></div><div class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-sm" data-icon="group">group</span><span class="font-data-md text-data-md">2 Clients</span></div></div>
+</div>
+</header>
+<!-- Main HUD Content -->
+<main class="relative z-10 w-full h-screen pt-24 px-edge-margin flex flex-col justify-between pointer-events-none pb-64">
+<!-- Top Row: GPS & Storage -->
+<div class="flex justify-between items-start w-full">
+<!-- GPS Status -->
+<div class="glass-panel p-4 rounded-xl flex items-center gap-3 pointer-events-auto">
+<div class="relative flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary" data-icon="satellite_alt">satellite_alt</span>
+<span class="absolute -top-1 -right-1 flex h-3 w-3">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-3 w-3 bg-secondary"></span>
+</span>
+</div>
+<div>
+<div class="font-label-caps text-label-caps text-on-surface-variant">GPS SIGNAL</div>
+<div class="font-data-md text-data-md text-secondary">LOCKED • 12 SAT</div>
+</div>
+</div>
+<!-- Storage Status -->
+<div class="glass-panel p-4 rounded-xl flex items-center gap-4 pointer-events-auto">
+<div class="text-right">
+<div class="font-label-caps text-label-caps text-on-surface-variant">STORAGE</div>
+<div class="font-data-md text-data-md text-on-surface">114.2 GB / 128 GB</div>
+</div>
+<div class="w-16 h-16 relative">
+<svg class="w-full h-full transform -rotate-90">
+<circle class="text-white/10" cx="32" cy="32" fill="transparent" r="28" stroke="currentColor" stroke-width="6"></circle>
+<circle class="text-primary-container" cx="32" cy="32" fill="transparent" r="28" stroke="currentColor" stroke-dasharray="175.9" stroke-dashoffset="44" stroke-width="6"></circle>
+</svg>
+<div class="absolute inset-0 flex items-center justify-center font-data-md text-data-md">75%</div>
+</div>
+</div>
+</div>
+<!-- Center Row: Speedometer & Recording Time -->
+<div class="flex flex-col items-center justify-center space-y-4">
+<!-- Speedometer -->
+<div class="flex flex-col items-center">
+<div class="text-[120px] leading-none font-bold text-white drop-shadow-2xl tracking-tighter" id="speedometer">29</div>
+<div class="font-headline-sm text-headline-sm text-on-surface-variant -mt-4 opacity-80 uppercase tracking-widest">km/h</div>
+</div>
+<!-- Recording Timer -->
+<div class="flex items-center gap-3 bg-error-container/40 border border-error/20 px-6 py-2 rounded-full backdrop-blur-md">
+<div class="w-3 h-3 bg-primary-container rounded-full animate-pulse"></div>
+<div class="font-data-lg text-data-lg text-on-background tracking-widest" id="timer">00:50:32</div>
+</div>
+</div>
+<!-- Bottom Row: Voice Hint & Quick Controls -->
+<div class="flex flex-col items-center gap-8">
+<!-- Voice Command Hint -->
+<div class="flex items-center gap-2 glass-panel px-6 py-2 rounded-full opacity-80 border-dashed animate-pulse pointer-events-auto cursor-help">
+<span class="material-symbols-outlined text-sm" data-icon="mic">mic</span>
+<span class="font-body-md text-body-md">Say "Take Photo" to capture</span>
+</div>
+<!-- Dashboard Interaction Cluster -->
+<div class="flex items-center gap-6 pointer-events-auto">
+<!-- Secondary Controls Left -->
+<div class="flex gap-4">
+<button class="w-14 h-14 rounded-full glass-panel flex items-center justify-center text-on-surface hover:bg-surface-variant transition-colors group">
+<span class="material-symbols-outlined group-active:scale-90 transition-transform" data-icon="photo_camera">photo_camera</span>
+</button>
+<button class="w-14 h-14 rounded-full glass-panel flex items-center justify-center text-on-surface hover:bg-surface-variant transition-colors group" id="muteBtn">
+<span class="material-symbols-outlined group-active:scale-90 transition-transform" data-icon="mic">mic</span>
+</button>
+</div>
+<!-- Main Pulse Button (Safety Orange) -->
+<button class="w-24 h-24 rounded-full bg-primary-container text-on-primary-fixed shadow-[0_0_30px_rgba(255,107,0,0.5)] flex flex-col items-center justify-center relative pulse-recording group active:scale-90 transition-transform duration-150">
+<span class="material-symbols-outlined text-4xl leading-none" data-icon="stop" style="font-variation-settings: 'FILL' 1;">stop</span>
+<span class="font-label-caps text-[10px] mt-1">REC</span>
+</button>
+<!-- Secondary Controls Right -->
+<div class="flex gap-4">
+<button class="w-14 h-14 rounded-full bg-error-container/40 border-2 border-error/50 flex items-center justify-center text-error hover:bg-error-container transition-colors group">
+<span class="material-symbols-outlined group-active:scale-90 transition-transform" data-icon="lock" style="font-variation-settings: 'FILL' 1;">lock</span>
+</button>
+<button class="w-14 h-14 rounded-full glass-panel flex items-center justify-center text-on-surface hover:bg-surface-variant transition-colors group">
+<span class="material-symbols-outlined group-active:scale-90 transition-transform" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Navigation Bar (JSON Content - Active: Recorder) -->
+<div class="fixed bottom-[88px] left-0 w-full z-40 px-edge-margin pointer-events-none">
+<div class="glass-panel bg-surface/40 backdrop-blur-md rounded-xl p-4 pointer-events-auto border border-white/10">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-sm">group</span>
+<h3 class="font-label-caps text-label-caps text-on-surface">Active Remote Viewers</h3>
+</div>
+<span class="text-[10px] font-bold bg-primary/20 text-primary px-2 py-0.5 rounded-full uppercase tracking-wider">2 Active</span>
+</div>
+<div class="space-y-3">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant" style="font-size: 20px;">devices</span>
+<div>
+<div class="text-data-md font-medium text-on-surface">Pixel 7 Pro (Home Desktop)</div>
+<div class="text-[10px] text-on-surface-variant opacity-70">Connected 12m ago</div>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant" style="font-size: 20px;">devices</span>
+<div>
+<div class="text-data-md font-medium text-on-surface">iPhone 15 (Field Tablet)</div>
+<div class="text-[10px] text-on-surface-variant opacity-70">Connected 2m ago</div>
+</div>
+</div>
+<div class="flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-tertiary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-tertiary"></span>
+</div>
+</div>
+</div>
+</div>
+</div><nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 pb-safe bg-surface/90 dark:bg-surface/90 backdrop-blur-xl border-t border-white/10 shadow-lg shadow-primary/20">
+<a class="flex flex-col items-center justify-center bg-primary-container dark:bg-primary-container text-on-primary-container dark:text-on-primary-container rounded-full px-6 py-2 transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="radio_button_checked">radio_button_checked</span>
+<span class="font-label-caps text-label-caps mt-0.5">Recorder</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant opacity-70 hover:opacity-100 transition-opacity" href="#">
+<span class="material-symbols-outlined" data-icon="grid_view">grid_view</span>
+<span class="font-label-caps text-label-caps mt-0.5">Media</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant opacity-70 hover:opacity-100 transition-opacity" href="#">
+<span class="material-symbols-outlined" data-icon="emergency_home">emergency_home</span>
+<span class="font-label-caps text-label-caps mt-0.5">Events</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant opacity-70 hover:opacity-100 transition-opacity" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-caps text-label-caps mt-0.5">Settings</span>
+</a>
+</nav>
+<script>
+        // Micro-interaction for timer
+        let seconds = 923; // Starting at 00:15:23
+        const timerEl = document.getElementById('timer');
+        
+        setInterval(() => {
+            seconds++;
+            const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
+            const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+            const s = (seconds % 60).toString().padStart(2, '0');
+            timerEl.textContent = `${h}:${m}:${s}`;
+        }, 1000);
+
+        // Mute toggle interaction
+        const muteBtn = document.getElementById('muteBtn');
+        let muted = false;
+        muteBtn.addEventListener('click', () => {
+            muted = !muted;
+            const icon = muteBtn.querySelector('span');
+            icon.textContent = muted ? 'mic_off' : 'mic';
+            muteBtn.classList.toggle('text-error', muted);
+            muteBtn.classList.toggle('bg-error-container/20', muted);
+        });
+
+        // Simple speed simulator
+        const speedEl = document.getElementById('speedometer');
+        let speed = 0;
+        let targetSpeed = 0;
+
+        // Change target speed every few seconds to simulate driving
+        setInterval(() => {
+            targetSpeed = Math.floor(Math.random() * 85);
+        }, 3000);
+
+        // Interpolate current speed
+        setInterval(() => {
+            if (speed < targetSpeed) speed++;
+            if (speed > targetSpeed) speed--;
+            speedEl.textContent = speed;
+        }, 50);
+    </script>
+</body></html>

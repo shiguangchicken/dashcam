@@ -1,0 +1,285 @@
+<!DOCTYPE html><html class="dark" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>DroidDash - Local Media Browser</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "outline-variant": "#5a4136",
+                    "on-tertiary-fixed": "#00210c",
+                    "on-secondary-fixed": "#001d33",
+                    "surface-tint": "#ffb693",
+                    "on-error": "#690005",
+                    "on-secondary-container": "#003558",
+                    "background": "#10141a",
+                    "on-secondary": "#003354",
+                    "surface-dim": "#10141a",
+                    "secondary-container": "#00a2fd",
+                    "primary-fixed-dim": "#ffb693",
+                    "tertiary-fixed": "#6bfe9c",
+                    "error": "#ffb4ab",
+                    "on-primary-fixed": "#351000",
+                    "on-primary": "#561f00",
+                    "surface-container-low": "#181c22",
+                    "on-tertiary-container": "#003a1a",
+                    "inverse-primary": "#a04100",
+                    "surface-container": "#1c2026",
+                    "outline": "#a98a7d",
+                    "primary-fixed": "#ffdbcc",
+                    "primary-container": "#ff6b00",
+                    "primary": "#ffb693",
+                    "on-error-container": "#ffdad6",
+                    "surface-container-highest": "#31353c",
+                    "surface-bright": "#353940",
+                    "secondary-fixed-dim": "#98cbff",
+                    "on-surface-variant": "#e2bfb0",
+                    "on-tertiary-fixed-variant": "#005228",
+                    "on-primary-fixed-variant": "#7a3000",
+                    "on-primary-container": "#572000",
+                    "on-surface": "#dfe2eb",
+                    "tertiary": "#4ae183",
+                    "surface-container-lowest": "#0a0e14",
+                    "surface": "#10141a",
+                    "on-background": "#dfe2eb",
+                    "on-secondary-fixed-variant": "#004a77",
+                    "tertiary-container": "#00b05c",
+                    "error-container": "#93000a",
+                    "tertiary-fixed-dim": "#4ae183",
+                    "inverse-surface": "#dfe2eb",
+                    "secondary": "#98cbff",
+                    "inverse-on-surface": "#2d3137",
+                    "surface-variant": "#31353c",
+                    "on-tertiary": "#003919",
+                    "surface-container-high": "#262a31",
+                    "secondary-fixed": "#cfe5ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "touch-target-min": "48px",
+                    "unit": "4px",
+                    "container-padding": "12px",
+                    "edge-margin": "24px",
+                    "gutter": "16px"
+            },
+            "fontFamily": {
+                    "label-caps": ["Inter"],
+                    "headline-sm": ["Inter"],
+                    "body-md": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "data-lg": ["JetBrains Mono"],
+                    "data-md": ["JetBrains Mono"],
+                    "body-lg": ["Inter"]
+            },
+            "fontSize": {
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "data-lg": ["20px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "data-md": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #10141a;
+            color: #dfe2eb;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md min-h-screen pb-24">
+<!-- Top Navigation Placeholder (Hidden per instructions, but shell structure logic applies) -->
+<header class="bg-surface/80 dark:bg-surface/80 backdrop-blur-md text-primary dark:text-primary font-headline-sm text-headline-sm fixed top-0 w-full z-50 border-b border-white/10 shadow-sm flex items-center justify-between px-edge-margin h-14 w-full">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">videocam</span>
+<h1 class="font-headline-md text-headline-md font-bold text-primary dark:text-primary tracking-tight">DroidDash</h1>
+</div>
+<button class="bg-primary-container text-on-primary-container px-4 py-1.5 rounded-full font-label-caps text-label-caps active:scale-95 transition-transform">
+            Bulk Manage
+        </button>
+</header>
+<main class="pt-20 px-container-padding max-w-5xl mx-auto">
+<!-- Search & Filter Bar -->
+<section class="mb-6 space-y-4">
+<div class="relative group" style="transform: translateY(0px);">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full h-14 pl-12 pr-4 bg-surface-container rounded-xl border border-white/10 focus:border-primary transition-colors outline-none text-body-md" placeholder="Search local files..." type="text">
+</div>
+<div class="flex gap-2 overflow-x-auto scrollbar-hide pb-2">
+<button class="flex items-center gap-2 bg-primary-container/20 border border-primary text-primary px-4 py-2 rounded-full whitespace-nowrap">
+<span class="material-symbols-outlined text-[18px]">calendar_today</span>
+<span class="font-label-caps text-label-caps">Date: All</span>
+</button>
+<button class="flex items-center gap-2 glass-panel text-on-surface-variant px-4 py-2 rounded-full whitespace-nowrap">
+<span class="material-symbols-outlined text-[18px]">motion_sensor_active</span>
+<span class="font-label-caps text-label-caps">Mode: G-Sensor</span>
+</button>
+<button class="flex items-center gap-2 glass-panel text-on-surface-variant px-4 py-2 rounded-full whitespace-nowrap">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+<span class="font-label-caps text-label-caps">File Size</span>
+</button>
+</div>
+</section>
+<!-- Category Tabs -->
+<nav class="flex border-b border-white/5 mb-6">
+<button class="flex-1 py-4 text-center font-label-caps text-label-caps border-b-2 border-primary text-primary">VIDEOS (42)</button>
+<button class="flex-1 py-4 text-center font-label-caps text-label-caps text-on-surface-variant">PHOTOS (12)</button>
+</nav>
+<!-- Media Grid -->
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+<!-- Event Item 1 (Emergency) -->
+<div class="group relative bg-surface-container rounded-xl overflow-hidden border-l-4 border-error shadow-lg" style="transform: translateY(0px);">
+<div class="aspect-video relative overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A cinematic night-time dashboard camera view through a rainy windshield. The streetlights create glowing bokeh effects on the glass, while the road ahead is dark and wet, reflecting neon signs. The UI style is dark and technical, suggesting a high-reliability vehicle monitoring system with deep obsidian tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBJM0fRIfjzzwlzGSysYpoSDJ6SiUamr5ZcrDNup_AwwOie5nMQ6ZCDtvEx_Xac8FwYZI3Tv3BmptPcUmKgXTScPoUt61ryw21CB48OFU4Go62AAqo4LdkQOvWuhDLWeInHtUPgoq4ST2ACT2YQhFRW7fgEZhNkQEF0twpYyYeo3DEdmsWzd8V1vTDrnVJCRMQDPgLoC5pM_ulEL-B6FsFW41z6mr1MdXFXFJN7dDxAMK-c6TlyLYAsWKSxePHTXO1XeMdhKIVrRiU">
+<div class="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-[10px] font-data-md text-white">05:22</div>
+<div class="absolute top-2 left-2 bg-error text-on-error px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Incident</div>
+</div>
+<div class="p-3">
+<div class="font-data-md text-data-md text-on-surface truncate mb-1">EVT_20231024_01.mp4</div>
+<div class="flex justify-between items-center text-[11px] text-on-surface-variant font-medium">
+<span class="">Oct 24, 22:14</span>
+<span class="">142 MB</span>
+</div>
+</div>
+</div>
+<!-- Regular Item 2 -->
+<div class="group relative bg-surface-container rounded-xl overflow-hidden border border-white/5" style="transform: translateY(0px);">
+<div class="aspect-video relative overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A wide-angle dashcam perspective capturing a drive through a dense evergreen forest during the golden hour. The long shadows of the trees stretch across the asphalt, and the warm sunlight filters through the canopy. The aesthetic is clean and high-definition, consistent with professional automotive surveillance equipment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB60roHaC_WWn21mMu_yCPepClDd-6N1cfD90zSCE6NGqAzRhXSeDPaC_SwuC53m3_bJ86sEIIydo7mEw-s5nSzBpSviVabIHPLsn4I31U4k_T0FvDp4Zs5D_zf6ci3CKgsKyP2rDrhYA8t-uC65mdxTagsbK971lAQKwHZAvzf-eoOkFmB5dhLNkHj_CGumuvj7-bE5M9ZTpqPGpyGz-YsuUolLChjHLiv8Zmv1-TUBYrZHwT7rgp4LC1wLASp06dd1s_1jtcaItw">
+<div class="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-[10px] font-data-md text-white">10:00</div>
+</div>
+<div class="p-3">
+<div class="font-data-md text-data-md text-on-surface truncate mb-1">REC_20231024_02.mp4</div>
+<div class="flex justify-between items-center text-[11px] text-on-surface-variant font-medium">
+<span class="">Oct 24, 21:50</span>
+<span class="">256 MB</span>
+</div>
+</div>
+</div>
+<!-- Regular Item 3 -->
+<div class="group relative bg-surface-container rounded-xl overflow-hidden border border-white/5" style="transform: translateY(0px);">
+<div class="aspect-video relative overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A high-contrast dashcam frame of a busy urban intersection at dusk. The city skyline is visible in the background against a deep indigo sky, with car taillights forming long red streaks. The image has a sharp, technical look with high clarity in low-light conditions, matching the obsidian and blue-toned DroidDash UI." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAF5Gwzumyx914lJmxlnE49MnoadGwY33KDt6kS_9To52fSV9PjkBdKbCpHkc_Ot3STn-CvAeHHJUlzk6GuiKsTzha3ueLnbuLrUNd_YKawDTmzL30ZTdix0dIl6kDNSYZIKyagwLIOrEW73sIGp9PGNjr8X7PEizDhSKy97LPvAufWHCihoc66wwcqdSOuM4VK_LjbNsXgH4vWtEY-ty5NTd58NLWVEe41s1fROY3qhlV-RNZu9NzZev1c7fBsFFJW2wLSlBDkOpM">
+<div class="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-[10px] font-data-md text-white">10:00</div>
+</div>
+<div class="p-3">
+<div class="font-data-md text-data-md text-on-surface truncate mb-1">REC_20231024_03.mp4</div>
+<div class="flex justify-between items-center text-[11px] text-on-surface-variant font-medium">
+<span class="">Oct 24, 21:40</span>
+<span class="">254 MB</span>
+</div>
+</div>
+</div>
+<!-- Event Item 4 -->
+<div class="group relative bg-surface-container rounded-xl overflow-hidden border-l-4 border-error shadow-lg" style="transform: translateY(0px);">
+<div class="aspect-video relative overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A first-person driving view from a modern vehicle cockpit, looking through the front glass onto a highway during a overcast day. The dashboard details are sleek and dark, mirroring the high-reliability utility of the DroidDash application. The lighting is diffused and moody, emphasizing a secure and focused driving environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCedLqy6Uja4HXhR5BSxmzspTFUiZktA37OUQGTzJ-JM790sSHmEveGTeb6qQriB_BW7TIp5L3CrSIAk8lWjWEpOlHDU82zyQpQ9CVm1GWCLFzRFPCM7Yl3v1iYIJiUD1Cc7uJ800guJuwYyayzmrjf-fu3yuRMzW2CFizl6J6FVOtS_SPHMD4kahhdO5Clp9vdwsp05Am6afKPqYp6cXp5Ihe5_b4FWCRIw5htzbP8Arr4MrSuighrHixx416bIbAveSYMfQOv00w">
+<div class="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-[10px] font-data-md text-white">02:15</div>
+<div class="absolute top-2 left-2 bg-error text-on-error px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Hard Braking</div>
+</div>
+<div class="p-3">
+<div class="font-data-md text-data-md text-on-surface truncate mb-1">EVT_20231024_04.mp4</div>
+<div class="flex justify-between items-center text-[11px] text-on-surface-variant font-medium">
+<span class="">Oct 24, 21:35</span>
+<span class="">58 MB</span>
+</div>
+</div>
+</div>
+<!-- More placeholders to show scroll -->
+<div class="group relative bg-surface-container rounded-xl overflow-hidden border border-white/5" style="transform: translateY(0px);">
+<div class="aspect-video relative overflow-hidden bg-white/5 flex items-center justify-center">
+<span class="material-symbols-outlined text-white/20 text-4xl">movie</span>
+</div>
+<div class="p-3">
+<div class="font-data-md text-data-md text-on-surface truncate mb-1">REC_20231024_05.mp4</div>
+<div class="flex justify-between items-center text-[11px] text-on-surface-variant font-medium">
+<span class="">Oct 24, 21:25</span>
+<span class="">256 MB</span>
+</div>
+</div>
+</div>
+<div class="group relative bg-surface-container rounded-xl overflow-hidden border border-white/5" style="transform: translateY(0px);">
+<div class="aspect-video relative overflow-hidden bg-white/5 flex items-center justify-center">
+<span class="material-symbols-outlined text-white/20 text-4xl">movie</span>
+</div>
+<div class="p-3">
+<div class="font-data-md text-data-md text-on-surface truncate mb-1">REC_20231024_06.mp4</div>
+<div class="flex justify-between items-center text-[11px] text-on-surface-variant font-medium">
+<span class="">Oct 24, 21:15</span>
+<span class="">256 MB</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Recording FAB -->
+
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 w-full h-20 flex justify-around items-center px-container-padding pb-safe bg-surface/90 dark:bg-surface/90 backdrop-blur-lg border-t border-white/10 shadow-lg shadow-primary/20 z-50 rounded-t-full">
+<!-- Recorder -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary/80 active:scale-90 transition-all duration-150" href="#"><span class="material-symbols-outlined mb-1">radio_button_checked</span><span class="font-label-caps text-label-caps">Recorder</span></a>
+<!-- Media (Active) -->
+<a class="flex flex-col items-center justify-center text-primary font-bold bg-primary-container/20 rounded-full px-4 py-1 active:scale-90 transition-all duration-150" href="#"><span class="material-symbols-outlined mb-1">grid_view</span><span class="font-label-caps text-label-caps">Media</span></a>
+<!-- Events -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary/80 active:scale-90 transition-all duration-150" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="warning">warning</span>
+<span class="font-label-caps text-label-caps">Events</span>
+</a>
+<!-- Settings -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary/80 active:scale-90 transition-all duration-150" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="settings">settings</span>
+<span class="font-label-caps text-label-caps">Settings</span>
+</a>
+</nav>
+<script>
+        // Simple micro-interactions for active state feedback
+        document.querySelectorAll('nav a').forEach(item => {
+            item.addEventListener('click', function(e) {
+                // In a real app, this would handle routing
+                console.log('Navigated to: ' + this.innerText.trim());
+            });
+        });
+
+        // Hover effect for media cards
+        const cards = document.querySelectorAll('.group');
+        cards.forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-2px)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0px)';
+            });
+        });
+    </script>
+
+
+</body></html>

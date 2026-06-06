@@ -1,0 +1,327 @@
+<!DOCTYPE html><html class="dark" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;600&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet">
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .video-gradient-overlay {
+            background: linear-gradient(0deg, rgba(16, 20, 26, 0.8) 0%, rgba(16, 20, 26, 0) 40%, rgba(16, 20, 26, 0) 60%, rgba(16, 20, 26, 0.8) 100%);
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #31353c;
+            border-radius: 10px;
+        }
+    </style>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-variant": "#31353c",
+                    "surface-tint": "#ffb693",
+                    "on-primary-fixed": "#351000",
+                    "on-primary": "#561f00",
+                    "secondary-container": "#00a2fd",
+                    "on-secondary-fixed": "#001d33",
+                    "outline-variant": "#5a4136",
+                    "secondary": "#98cbff",
+                    "primary-fixed-dim": "#ffb693",
+                    "surface-dim": "#10141a",
+                    "error-container": "#93000a",
+                    "on-tertiary-container": "#003a1a",
+                    "tertiary-fixed": "#6bfe9c",
+                    "surface-container-lowest": "#0a0e14",
+                    "surface-container-highest": "#31353c",
+                    "inverse-primary": "#a04100",
+                    "surface-bright": "#353940",
+                    "on-background": "#dfe2eb",
+                    "surface": "#10141a",
+                    "outline": "#a98a7d",
+                    "tertiary-container": "#00b05c",
+                    "inverse-on-surface": "#2d3137",
+                    "on-tertiary-fixed": "#00210c",
+                    "on-secondary": "#003354",
+                    "on-surface-variant": "#e2bfb0",
+                    "on-error": "#690005",
+                    "on-primary-container": "#572000",
+                    "on-surface": "#dfe2eb",
+                    "error": "#ffb4ab",
+                    "surface-container-high": "#262a31",
+                    "primary-fixed": "#ffdbcc",
+                    "on-primary-fixed-variant": "#7a3000",
+                    "background": "#10141a",
+                    "tertiary": "#4ae183",
+                    "on-tertiary-fixed-variant": "#005228",
+                    "primary-container": "#ff6b00",
+                    "on-secondary-container": "#003558",
+                    "on-error-container": "#ffdad6",
+                    "secondary-fixed-dim": "#98cbff",
+                    "surface-container": "#1c2026",
+                    "secondary-fixed": "#cfe5ff",
+                    "on-secondary-fixed-variant": "#004a77",
+                    "inverse-surface": "#dfe2eb",
+                    "primary": "#ffb693",
+                    "tertiary-fixed-dim": "#4ae183",
+                    "surface-container-low": "#181c22",
+                    "on-tertiary": "#003919"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "edge-margin": "24px",
+                    "gutter": "16px",
+                    "container-padding": "12px",
+                    "touch-target-min": "48px",
+                    "unit": "4px"
+            },
+            "fontFamily": {
+                    "label-caps": ["Inter"],
+                    "data-lg": ["JetBrains Mono"],
+                    "headline-md": ["Inter"],
+                    "data-md": ["JetBrains Mono"],
+                    "body-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-sm": ["Inter"],
+                    "headline-lg": ["Inter"]
+            },
+            "fontSize": {
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "data-lg": ["20px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "data-md": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body-md min-h-screen overflow-x-hidden">
+<!-- Top AppBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-edge-margin h-touch-target-min bg-surface/80 backdrop-blur-md border-b border-white/10">
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-primary hover:bg-surface-variant/50 p-2 rounded-full transition-transform active:scale-95" data-icon="arrow_back">arrow_back</button>
+<h1 class="font-headline-md text-headline-md font-bold text-primary tracking-tight">DroidDash</h1>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="videocam">videocam</span>
+<span class="material-symbols-outlined text-primary" data-icon="sensors">sensors</span>
+</div>
+</header>
+<main class="px-edge-margin lg:flex lg:gap-gutter max-w-screen-2xl mx-auto pt-14 pb-20">
+<!-- Left: Video Player Section -->
+<div class="flex-grow lg:max-w-[70%]">
+<div class="relative aspect-video bg-black rounded-xl overflow-hidden shadow-2xl group border border-white/5">
+<img alt="Video Feed" class="w-full h-full object-cover opacity-80" data-alt="A first-person dashcam perspective of a car driving through a neon-lit futuristic city at night. The lighting is cinematic with high-contrast Safety Orange and Cyber Blue reflections on the wet asphalt and windshield. The mood is high-reliability utility with a technical HUD feel, capturing a sharp, detailed urban environment under atmospheric night conditions." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDWfAvX5bs3_USIOPTUQqdzijY9ecltbkbVqEK6ajPVI8Ur3Mi_zImCNtLoNbdKw6S_ae930ebzMA5vLUaudGDGYDmCi3__yFUpR_6mFWtgGOpA-EHlFib6PVHm4GaLPpG0ybVmb7O6qbFd_g2ZxdSHEqb6x_DyUZUmColQ2Ky45ysktU_AOf_MVeDm0qp2u-JRn7AeEMyY85OAXpTEioly-nf_IqdYYeqF7_8izchvVG8jXPOi3AkH3_xXLxP6UfQOVTqvQLuZkNQ">
+<div class="absolute inset-0 video-gradient-overlay pointer-events-none"></div>
+<!-- Video Metadata Overlay (Top Left) -->
+<div class="absolute top-4 left-4 flex flex-col gap-1">
+<div class="flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
+<span class="w-2 h-2 rounded-full bg-error animate-pulse"></span>
+<span class="font-data-md text-data-md text-on-surface">REC: PARKING MODE</span>
+</div>
+<div class="bg-black/40 backdrop-blur-sm px-3 py-1 rounded-lg">
+<p class="font-data-md text-data-md text-on-surface-variant">2023-11-24 | 22:15:04</p>
+</div>
+</div>
+<!-- G-Force / Speed Hud (Bottom Right) -->
+
+<!-- Standard Controls -->
+<div class="absolute bottom-0 left-0 w-full p-4 glass-panel flex flex-col gap-2">
+<div class="w-full h-1.5 bg-white/10 rounded-full cursor-pointer relative group/progress">
+<div class="h-full bg-primary w-2/5 rounded-full relative">
+<div class="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 bg-primary rounded-full shadow-lg scale-0 group-hover/progress:scale-100 transition-transform"></div>
+</div>
+</div>
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-6">
+<button class="material-symbols-outlined text-on-surface hover:text-primary transition-colors" data-icon="skip_previous">skip_previous</button>
+<button class="material-symbols-outlined text-primary text-4xl leading-none transition-transform active:scale-90" data-icon="play_circle" style="font-variation-settings: &quot;FILL&quot; 1;">play_circle</button>
+<button class="material-symbols-outlined text-on-surface hover:text-primary transition-colors" data-icon="skip_next">skip_next</button>
+<span class="font-data-md text-data-md text-on-surface-variant">02:14 / 05:00</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-on-surface" data-icon="volume_up">volume_up</button>
+<button class="material-symbols-outlined text-on-surface" data-icon="fullscreen">fullscreen</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Action Bar -->
+<div class="grid grid-cols-3 gap-4 mt-4">
+
+<button class="h-14 flex items-center justify-center gap-3 glass-panel text-on-surface rounded-xl font-label-caps text-label-caps hover:bg-surface-variant active:scale-95 transition-all">
+<span class="material-symbols-outlined text-secondary" data-icon="share">share</span>
+                    SHARE
+                </button>
+<button class="h-14 flex items-center justify-center gap-3 bg-error-container/20 text-error rounded-xl font-label-caps text-label-caps hover:bg-error-container/40 active:scale-95 transition-all border border-error/20">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+                    DELETE
+                </button>
+</div>
+<!-- Metadata Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+<div class="surface-container rounded-xl p-4 border border-white/5">
+<p class="font-label-caps text-label-caps text-outline mb-2">FILE DETAILS</p>
+<div class="space-y-2">
+<div class="flex justify-between">
+<span class="text-on-surface-variant font-body-md">Path</span>
+<span class="font-data-md text-data-md text-on-surface">/sdcard/dash/event_241123.mp4</span>
+</div>
+<div class="flex justify-between">
+<span class="text-on-surface-variant font-body-md">Size</span>
+<span class="font-data-md text-data-md text-on-surface">428.5 MB</span>
+</div>
+<div class="flex justify-between">
+<span class="text-on-surface-variant font-body-md">Resolution</span>
+<span class="font-data-md text-data-md text-on-surface">3840x2160 (4K)</span>
+</div>
+</div>
+</div>
+<div class="surface-container rounded-xl p-4 border border-white/5">
+<p class="font-label-caps text-label-caps text-outline mb-2">TELEMETRY STATS</p>
+<div class="space-y-2">
+<div class="flex justify-between">
+<span class="text-on-surface-variant font-body-md">Avg Speed</span>
+<span class="font-data-md text-data-md text-on-surface">54.2 km/h</span>
+</div>
+<div class="flex justify-between">
+<span class="text-on-surface-variant font-body-md">Max G-Force</span>
+<span class="font-data-md text-data-md text-on-surface">1.2G (Impact)</span>
+</div>
+<div class="flex justify-between">
+<span class="text-on-surface-variant font-body-md">Temp</span>
+<span class="font-data-md text-data-md text-tertiary">42°C</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right: Telemetry Sidebar -->
+<aside class="mt-gutter lg:mt-0 lg:w-[30%] space-y-4">
+<!-- GPS Mini-Map -->
+<div class="surface-container rounded-xl overflow-hidden border border-white/5 h-64 relative">
+<div class="absolute top-3 left-3 z-10 glass-panel px-3 py-1 rounded-full flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-sm" data-icon="satellite_alt">satellite_alt</span>
+<span class="font-label-caps text-[10px] text-on-surface">GPS LOCKED</span>
+</div>
+<img alt="Route Map" class="w-full h-full object-cover grayscale opacity-60" data-alt="A dark-themed, minimalist satellite map view of a city grid at night with a glowing Cyber Blue path tracing a vehicle's route. The map features high-contrast dark tones and sharp geometric lines, maintaining a high-tech HUD aesthetic with glowing points of interest in Safety Orange." data-location="Tokyo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOttHrmr5Q2jsrP_Seky4wD9Vt8zoNR9-CYrQOBCcPGQpkBj4MT8xwf01J17teL5WaP05WwbMAKcsNAXC09o6Fj6jPkzrUquXDbaNChpq78rBlBy98LuhvIeoFJw0dk9C2COj25Fe_u_ra7h7EhjgdRlbuw-RoABkwLY9nqYtewuEwntSipTTl66sKNUL6o1rCQ2eWgoT26NPxZgw98--32ZYQyoiQs6SBIeXz-ofUrWB2_Roc9eooJjhwE5OsYkofwdD1FtyMTnI">
+<div class="absolute inset-0 bg-primary/10 pointer-events-none mix-blend-overlay"></div>
+</div>
+<!-- G-Force Sensor Data -->
+
+<!-- Speed Chart (Mockup) -->
+
+</aside>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 pb-safe bg-surface/90 backdrop-blur-xl border-t border-white/10 rounded-t-xl shadow-lg shadow-primary/20 md:hidden">
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-70 hover:opacity-100 transition-opacity" href="#">
+<span class="material-symbols-outlined" data-icon="radio_button_checked">radio_button_checked</span>
+<span class="font-label-caps text-label-caps">Recorder</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full px-6 py-2 transition-transform active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="grid_view" style="font-variation-settings: &quot;FILL&quot; 1;">grid_view</span>
+<span class="font-label-caps text-label-caps">Media</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-70 hover:opacity-100 transition-opacity" href="#">
+<span class="material-symbols-outlined" data-icon="emergency_home">emergency_home</span>
+<span class="font-label-caps text-label-caps">Events</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-70 hover:opacity-100 transition-opacity" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-caps text-label-caps">Settings</span>
+</a>
+</nav>
+<!-- Desktop Navigation SideDrawer (Hidden on Mobile) -->
+<aside class="hidden md:flex fixed inset-y-0 left-0 z-50 flex-col py-6 h-full w-20 lg:w-80 bg-surface-container-high border-r border-outline-variant shadow-2xl transition-all duration-300 group">
+<div class="px-6 mb-10 flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container">
+<span class="material-symbols-outlined" data-icon="drive_eta">drive_eta</span>
+</div>
+<div class="hidden lg:block overflow-hidden">
+<p class="font-headline-sm text-headline-sm text-primary truncate">DroidDash Cam</p>
+<p class="text-[10px] text-tertiary">Connected via Hotspot</p>
+</div>
+</div>
+<div class="flex-grow flex flex-col gap-2">
+<a class="flex items-center gap-4 text-on-surface-variant hover:bg-surface-variant mx-4 rounded-full p-3 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="radio_button_checked">radio_button_checked</span>
+<span class="hidden lg:block font-body-md text-body-md">Recorder</span>
+</a>
+<a class="flex items-center gap-4 bg-secondary-container text-on-secondary-container font-bold rounded-full mx-4 p-3 transition-all shadow-md" href="#">
+<span class="material-symbols-outlined" data-icon="grid_view" style="font-variation-settings: &quot;FILL&quot; 1;">grid_view</span>
+<span class="hidden lg:block font-body-md text-body-md">Media Gallery</span>
+</a>
+<a class="flex items-center gap-4 text-on-surface-variant hover:bg-surface-variant mx-4 rounded-full p-3 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="emergency_home">emergency_home</span>
+<span class="hidden lg:block font-body-md text-body-md">Event Logs</span>
+</a>
+<div class="my-4 border-t border-white/5 mx-6"></div>
+<a class="flex items-center gap-4 text-on-surface-variant hover:bg-surface-variant mx-4 rounded-full p-3 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="local_parking">local_parking</span>
+<span class="hidden lg:block font-body-md text-body-md">Parking Mode</span>
+</a>
+</div>
+<div class="px-6 mt-auto">
+<div class="p-4 glass-panel rounded-xl hidden lg:block">
+<div class="flex justify-between items-center mb-2">
+<span class="text-xs text-on-surface-variant">Storage</span>
+<span class="text-xs text-primary">78%</span>
+</div>
+<div class="w-full h-1 bg-white/10 rounded-full">
+<div class="h-full bg-primary" style="width: 78%;"></div>
+</div>
+</div>
+</div>
+</aside>
+<script>
+        // Simple Interaction logic
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('mousedown', () => {
+                btn.classList.add('scale-95');
+            });
+            btn.addEventListener('mouseup', () => {
+                btn.classList.remove('scale-95');
+            });
+        });
+
+        // Simulating telemetry movement
+        setInterval(() => {
+            const speed = document.querySelector('.font-data-lg');
+            if(speed) {
+                let current = parseInt(speed.innerText);
+                let drift = Math.floor(Math.random() * 3) - 1;
+                speed.innerText = Math.max(0, current + drift);
+            }
+        }, 2000);
+    </script>
+
+
+</body></html>

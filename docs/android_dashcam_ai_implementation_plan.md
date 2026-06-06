@@ -473,15 +473,15 @@ API：
 | PUT | `/api/settings` | 修改设置 |
 | WS | `/ws/events` | 状态/录制事件推送 |
 
-### 9.3 安全设计
+### 9.3 连接与访问边界
 
-虽然是局域网，也应做基础认证：
+远程查看使用 Android `startLocalOnlyHotspot()` 生成的临时 Wi-Fi 作为访问边界：
 
-- 首次配对生成 token。
-- 查看端扫码或输入配对码。
-- HTTP Header：`Authorization: Bearer <token>`。
-- 删除文件、切换模式等操作必须鉴权。
-- 可选：同一热点下只允许已配对设备访问。
+- 记录仪端启动 LocalOnlyHotspot 后读取系统生成的 SSID 和密码。
+- 记录仪端启动本机 HTTP 服务，并把 SSID、密码、服务地址和端口编码到 QR code。
+- 查看端扫描 QR code，请求连接该 Wi-Fi，然后访问 `http://192.168.x.x:8080`。
+- 当前设计不再使用配对 token、配对码或 `Authorization: Bearer` header。
+- 删除文件、切换模式、修改设置等写操作仅在已连接记录仪热点的局域网内开放。
 
 ---
 
@@ -492,17 +492,19 @@ API：
 ```text
 打开 APP
   -> 选择“远程查看模式”
-  -> 提示连接记录仪热点
-  -> 自动扫描网关/IP，尝试发现服务
+  -> 扫描记录仪端 QR code
+  -> 使用 QR 中的 SSID/密码连接 LocalOnlyHotspot
+  -> 使用 QR 中的 baseUrl 访问记录仪 HTTP 服务
   -> GET /api/status
   -> 成功后进入远程首页
 ```
 
 服务发现方式：
 
-1. 优先：mDNS / NSD。
-2. 备用：默认网关 + 端口 8080。
-3. 手动：用户输入 IP。
+1. 优先：QR code 中的 baseUrl。
+2. 备用：mDNS / NSD。
+3. 备用：默认网关 + 端口 8080。
+4. 调试：手动输入 IP。
 
 ### 10.2 页面
 
@@ -572,7 +574,7 @@ API：
 - 是否启用语音唤醒。
 - 唤醒词。
 - 热点状态和密码显示。
-- 配对 token 管理。
+- 记录仪热点 QR code 连接信息显示。
 
 ### 11.4 测试友好要求
 
@@ -1214,8 +1216,8 @@ fun statusApi_returnsRecordingState() = testApplication {
 真机测试：
 
 ```bash
-curl -H "Authorization: Bearer $TOKEN" http://$DASHCAM_IP:8080/api/status
-curl -H "Authorization: Bearer $TOKEN" http://$DASHCAM_IP:8080/api/media?type=video
+curl http://$DASHCAM_IP:8080/api/status
+curl "http://$DASHCAM_IP:8080/api/media?type=video"
 ```
 
 ### 15.5 双机联调测试

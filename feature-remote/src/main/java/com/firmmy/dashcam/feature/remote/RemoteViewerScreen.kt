@@ -86,10 +86,12 @@ fun RemoteViewerScreen(
     client: RemoteViewerClient,
     modifier: Modifier = Modifier,
     initialManualHost: String = "",
+    autoConnect: Boolean = false,
 ) {
     var state by remember {
         mutableStateOf(RemoteViewerUiState(manualHost = initialManualHost))
     }
+    var autoConnectAttempted by remember(initialManualHost, autoConnect) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     fun refresh() {
@@ -110,6 +112,19 @@ fun RemoteViewerScreen(
 
     LaunchedEffect(state.connected) {
         if (state.connected) refresh()
+    }
+
+    LaunchedEffect(autoConnect, initialManualHost) {
+        if (!autoConnect || autoConnectAttempted || initialManualHost.isBlank()) return@LaunchedEffect
+        autoConnectAttempted = true
+        state = state.copy(manualHost = initialManualHost, connecting = true, message = "")
+        val connected = runCatching { client.connect(initialManualHost) }.getOrDefault(false)
+        state = state.copy(
+            connected = connected,
+            connecting = false,
+            message = if (connected) "" else "Connection failed",
+        )
+        if (connected) refresh()
     }
 
     val selectedItem = state.selectedItem

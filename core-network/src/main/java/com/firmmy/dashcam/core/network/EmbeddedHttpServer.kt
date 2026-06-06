@@ -24,15 +24,12 @@ import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.WebSockets
 import io.ktor.server.websocket.webSocket
-import io.ktor.websocket.CloseReason
-import io.ktor.websocket.close
 import io.ktor.websocket.send
 import kotlinx.coroutines.flow.collectLatest
 
 class EmbeddedHttpServer(
     private val dataSource: DashCamRemoteDataSource,
     private val commandDispatcher: DashCamRemoteCommandDispatcher,
-    private val tokenProvider: DashCamTokenProvider,
     private val eventBus: RemoteEventBus = RemoteEventBus(),
     private val host: String = DEFAULT_HOST,
     private val port: Int = DEFAULT_PORT,
@@ -60,12 +57,10 @@ class EmbeddedHttpServer(
     private fun Application.configureRoutes() {
         routing {
             get("/api/status") {
-                if (!call.requireAuth()) return@get
                 call.respondJson(RemoteJson.status(dataSource.status()))
             }
 
             post("/api/command") {
-                if (!call.requireAuth()) return@post
                 val command = runCatching { RemoteJson.parseCommand(call.receiveText()) }.getOrNull()
                     ?: return@post call.respondJson(
                         RemoteJson.response(ok = false, message = "Invalid command"),
@@ -77,32 +72,27 @@ class EmbeddedHttpServer(
             }
 
             get("/api/media") {
-                if (!call.requireAuth()) return@get
                 val type = call.request.queryParameters["type"]?.let(MediaType::fromStoredValue)
                 val date = call.request.queryParameters["date"]
                 call.respondJson(RemoteJson.mediaList(dataSource.listMedia(type, date)))
             }
 
             get("/api/media/{id}/thumbnail") {
-                if (!call.requireAuth()) return@get
                 val id = call.mediaId() ?: return@get
                 call.respondAsset(dataSource.mediaThumbnail(id), inline = true)
             }
 
             get("/api/media/{id}/stream") {
-                if (!call.requireAuth()) return@get
                 val id = call.mediaId() ?: return@get
                 call.respondAsset(dataSource.mediaStream(id), inline = true, range = true)
             }
 
             get("/api/media/{id}/download") {
-                if (!call.requireAuth()) return@get
                 val id = call.mediaId() ?: return@get
                 call.respondAsset(dataSource.mediaDownload(id), inline = false)
             }
 
             delete("/api/media/{id}") {
-                if (!call.requireAuth()) return@delete
                 val id = call.mediaId() ?: return@delete
                 val ok = dataSource.deleteMedia(id)
                 val status = if (ok) HttpStatusCode.OK else HttpStatusCode.NotFound
@@ -110,12 +100,10 @@ class EmbeddedHttpServer(
             }
 
             get("/api/settings") {
-                if (!call.requireAuth()) return@get
                 call.respondJson(RemoteJson.settings(dataSource.settings()))
             }
 
             put("/api/settings") {
-                if (!call.requireAuth()) return@put
                 val settings = runCatching { RemoteJson.parseSettings(call.receiveText()) }.getOrNull()
                     ?: return@put call.respondJson(
                         RemoteJson.response(ok = false, message = "Invalid settings"),
@@ -126,10 +114,6 @@ class EmbeddedHttpServer(
             }
 
             webSocket("/ws/events") {
-                if (!call.isAuthorized()) {
-                    close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Unauthorized"))
-                    return@webSocket
-                }
                 send(RemoteJson.event(RemoteEvent.StatusChanged(dataSource.status())))
                 eventBus.events.collectLatest { event ->
                     send(RemoteJson.event(event))
@@ -202,19 +186,6 @@ class EmbeddedHttpServer(
         val requestedEnd = parts[1].toLongOrNull() ?: size - 1
         if (start < 0 || start >= size || requestedEnd < start) return null
         return start to requestedEnd.coerceAtMost(size - 1)
-    }
-
-    private fun io.ktor.server.application.ApplicationCall.isAuthorized(): Boolean {
-        val header = request.header(HttpHeaders.Authorization)
-        val queryToken = request.queryParameters["token"]?.let { "Bearer $it" }
-        return BearerTokenAuthenticator(tokenProvider::currentToken)
-            .authenticate(header ?: queryToken) == AuthResult.Authenticated
-    }
-
-    private suspend fun io.ktor.server.application.ApplicationCall.requireAuth(): Boolean {
-        if (isAuthorized()) return true
-        respondJson(RemoteJson.response(ok = false, message = "Unauthorized"), HttpStatusCode.Unauthorized)
-        return false
     }
 
     private suspend fun io.ktor.server.application.ApplicationCall.respondJson(

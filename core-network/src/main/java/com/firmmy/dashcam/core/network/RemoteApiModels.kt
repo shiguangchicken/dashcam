@@ -47,8 +47,6 @@ data class RemoteSettings(
     val audioEnabled: Boolean,
     val voiceWakeupEnabled: Boolean,
     val wakeWord: String,
-    val pairingToken: String,
-    val pairingCode: String,
 )
 
 data class RemoteCommandRequest(
@@ -89,10 +87,6 @@ interface DashCamRemoteDataSource {
 
 interface DashCamRemoteCommandDispatcher {
     suspend fun dispatch(command: DashCamCommand): Boolean
-}
-
-fun interface DashCamTokenProvider {
-    fun currentToken(): String
 }
 
 sealed interface RemoteEvent {

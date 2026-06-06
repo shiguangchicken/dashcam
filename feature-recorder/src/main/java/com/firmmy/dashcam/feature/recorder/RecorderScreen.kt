@@ -38,6 +38,8 @@ data class RecorderUiState(
     val hotspotEnabled: Boolean = false,
     val hotspotSsid: String = "",
     val hotspotPassword: String = "",
+    val remoteServerUrl: String = "",
+    val remoteQrText: String = "",
     val hotspotError: String = "",
     val photoCount: Int = 0,
 )
@@ -164,6 +166,13 @@ fun RecorderScreen(
                     modifier = Modifier.testTag("hotspot_password_text"),
                 )
             }
+            if (state.remoteServerUrl.isNotBlank()) {
+                StatusRow(
+                    label = "Remote server",
+                    value = state.remoteServerUrl,
+                    modifier = Modifier.testTag("remote_server_url_text"),
+                )
+            }
             if (state.hotspotError.isNotBlank()) {
                 StatusRow(
                     label = "Hotspot error",
@@ -172,6 +181,23 @@ fun RecorderScreen(
                 )
             }
             StatusRow("Photos", state.photoCount.toString())
+        }
+
+        if (state.remoteQrText.isNotBlank()) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = "Scan to connect",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                QrCodeImage(
+                    text = state.remoteQrText,
+                    modifier = Modifier.testTag("hotspot_qr_code"),
+                )
+            }
         }
 
         Column(

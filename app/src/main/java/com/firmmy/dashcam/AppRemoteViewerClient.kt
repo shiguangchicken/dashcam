@@ -19,7 +19,6 @@ import java.net.URI
 
 class AppRemoteViewerClient(
     context: Context,
-    private val tokenProvider: () -> String,
 ) : RemoteViewerClient {
     private val applicationContext = context.applicationContext
     private var client: RemoteDashCamClient? = null
@@ -34,10 +33,7 @@ class AppRemoteViewerClient(
             ),
         )
         val endpoint = discovery.discover() ?: manualHost.manualEndpoint() ?: return false
-        client = RemoteDashCamClient(
-            baseUrl = endpoint.baseUrl(),
-            tokenProvider = { tokenProvider() },
-        )
+        client = RemoteDashCamClient(baseUrl = endpoint.baseUrl())
         status()
         return true
     }

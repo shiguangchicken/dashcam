@@ -14,7 +14,6 @@ import com.firmmy.dashcam.core.media.DashCamMediaDirectories
 import com.firmmy.dashcam.core.media.DashCamMediaRepository
 import com.firmmy.dashcam.core.network.DashCamRemoteCommandDispatcher
 import com.firmmy.dashcam.core.network.DashCamRemoteDataSource
-import com.firmmy.dashcam.core.network.DashCamTokenProvider
 import com.firmmy.dashcam.core.network.RemoteMediaAsset
 import com.firmmy.dashcam.core.network.RemoteMediaItem
 import com.firmmy.dashcam.core.network.RemoteSettings
@@ -126,15 +125,6 @@ class AppRemoteCommandDispatcher(
     }
 }
 
-class SettingsTokenProvider(
-    private val settingsRepository: SettingsRepository,
-) : DashCamTokenProvider {
-    override fun currentToken(): String =
-        kotlinx.coroutines.runBlocking {
-            settingsRepository.getSettings().pairingToken
-        }
-}
-
 private fun MediaFileEntity.toRemoteMediaItem(): RemoteMediaItem? {
     val type = MediaType.fromStoredValue(type) ?: return null
     val mode = RecordingMode.fromStoredValue(mode) ?: RecordingMode.MANUAL
@@ -170,8 +160,6 @@ private fun DashCamSettings.toRemoteSettings(): RemoteSettings =
         audioEnabled = audioEnabled,
         voiceWakeupEnabled = voiceWakeupEnabled,
         wakeWord = wakeWord,
-        pairingToken = pairingToken,
-        pairingCode = pairingCode,
     )
 
 private fun RemoteSettings.toDashCamSettings(current: DashCamSettings): DashCamSettings =
@@ -188,6 +176,4 @@ private fun RemoteSettings.toDashCamSettings(current: DashCamSettings): DashCamS
         audioEnabled = audioEnabled,
         voiceWakeupEnabled = voiceWakeupEnabled,
         wakeWord = wakeWord,
-        pairingToken = pairingToken,
-        pairingCode = pairingCode,
     )

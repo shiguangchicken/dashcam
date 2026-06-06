@@ -8,7 +8,6 @@ PACKAGE="${PACKAGE:-com.firmmy.dashcam}"
 RECORDER_SERIAL="${RECORDER_SERIAL:-}"
 VIEWER_SERIAL="${VIEWER_SERIAL:-}"
 DASHCAM_IP="${DASHCAM_IP:-}"
-PAIRING_TOKEN="${PAIRING_TOKEN:-}"
 HOTSPOT_SSID="${HOTSPOT_SSID:-}"
 HOTSPOT_PASSWORD="${HOTSPOT_PASSWORD:-}"
 REPORT_DIR="$ROOT_DIR/build/reports/two-device"
@@ -188,7 +187,6 @@ read_recorder_setting() {
 refresh_recorder_settings_from_db() {
   HOTSPOT_SSID="${HOTSPOT_SSID:-$(read_recorder_setting hotspot_ssid)}"
   HOTSPOT_PASSWORD="${HOTSPOT_PASSWORD:-$(read_recorder_setting hotspot_password)}"
-  PAIRING_TOKEN="${PAIRING_TOKEN:-$(read_recorder_setting pairing_token)}"
 }
 
 ensure_recorder_video_sample() {
@@ -221,16 +219,16 @@ connect_viewer_wifi() {
 viewer_http_get() {
   local url="$1"
   if device_shell "$VIEWER_SERIAL" 'command -v curl >/dev/null'; then
-    device_shell "$VIEWER_SERIAL" curl -fsS -H "Authorization: Bearer $PAIRING_TOKEN" "$url"
+    device_shell "$VIEWER_SERIAL" curl -fsS "$url"
   elif device_shell "$VIEWER_SERIAL" 'command -v wget >/dev/null'; then
-    device_shell "$VIEWER_SERIAL" wget -qO- --header "Authorization: Bearer $PAIRING_TOKEN" "$url"
+    device_shell "$VIEWER_SERIAL" wget -qO- "$url"
   fi
   return 127
 }
 
 host_http_get() {
   local url="$1"
-  curl -fsS -H "Authorization: Bearer $PAIRING_TOKEN" "$url"
+  curl -fsS "$url"
 }
 
 api_get() {
@@ -251,8 +249,8 @@ api_get_to_file() {
   local path="$1"
   local output="$2"
   local raw="$output.raw"
-  local request="GET $path HTTP/1.1\r\nHost: $DASHCAM_IP\r\nAuthorization: Bearer $PAIRING_TOKEN\r\nConnection: close\r\n\r\n"
-  if curl -fsS -H "Authorization: Bearer $PAIRING_TOKEN" "http://$DASHCAM_IP:8080$path" > "$output"; then
+  local request="GET $path HTTP/1.1\r\nHost: $DASHCAM_IP\r\nConnection: close\r\n\r\n"
+  if curl -fsS "http://$DASHCAM_IP:8080$path" > "$output"; then
     return 0
   fi
   if viewer_http_get "http://$DASHCAM_IP:8080$path" > "$output"; then
@@ -271,10 +269,9 @@ api_post_command_to_file() {
   local length=${#body}
   local request
   request="POST /api/command HTTP/1.1\r\nHost: $DASHCAM_IP\r\n"
-  request+="Authorization: Bearer $PAIRING_TOKEN\r\nContent-Type: application/json\r\n"
+  request+="Content-Type: application/json\r\n"
   request+="Content-Length: $length\r\nConnection: close\r\n\r\n$body"
   if curl -fsS \
-    -H "Authorization: Bearer $PAIRING_TOKEN" \
     -H "Content-Type: application/json" \
     -d "$body" \
     "http://$DASHCAM_IP:8080/api/command" > "$output"; then
@@ -292,10 +289,9 @@ api_range_to_file() {
   local path="/api/media/$media_id/stream"
   local request
   request="GET $path HTTP/1.1\r\nHost: $DASHCAM_IP\r\n"
-  request+="Authorization: Bearer $PAIRING_TOKEN\r\nRange: bytes=0-1023\r\nConnection: close\r\n\r\n"
+  request+="Range: bytes=0-1023\r\nConnection: close\r\n\r\n"
   if curl -fsS \
     -D "$output.headers" \
-    -H "Authorization: Bearer $PAIRING_TOKEN" \
     -H "Range: bytes=0-1023" \
     "http://$DASHCAM_IP:8080$path" > "$output"; then
     grep -q "206" "$output.headers"
@@ -325,19 +321,10 @@ viewer_gateway_ip() {
     cut -d/ -f1
 }
 
-configure_viewer_pairing_if_needed() {
-  start_role_if_needed "$VIEWER_SERIAL" "Remote viewer mode"
-  if scroll_and_tap_text "$VIEWER_SERIAL" "Pairing token"; then
-    device_shell "$VIEWER_SERIAL" input text "$PAIRING_TOKEN" >/dev/null || true
-  fi
-  scroll_and_tap_text "$VIEWER_SERIAL" "Save" || true
-  sleep 1
-}
-
 connect_viewer_app_and_open_video() {
   start_app "$VIEWER_SERIAL"
   sleep 1
-  configure_viewer_pairing_if_needed
+  start_role_if_needed "$VIEWER_SERIAL" "Remote viewer mode"
   tap_if_present "$VIEWER_SERIAL" "Manual IP"
   device_shell "$VIEWER_SERIAL" input text "$DASHCAM_IP" >/dev/null || true
   tap_if_present "$VIEWER_SERIAL" "Connect"
@@ -376,8 +363,8 @@ refresh_recorder_settings_from_db
 ensure_recorder_video_sample
 refresh_recorder_settings_from_db
 
-echo "On viewer $VIEWER_SERIAL, choose Remote viewer mode and save the recorder pairing token if automation does not do it."
-echo "If DASHCAM_IP or PAIRING_TOKEN are not set, enter them now."
+echo "On viewer $VIEWER_SERIAL, scan the recorder QR if validating the full app flow."
+echo "If DASHCAM_IP is not set, connect Wi-Fi now or let the script try stored hotspot credentials."
 
 if [[ -z "$DASHCAM_IP" ]]; then
   connect_viewer_wifi
@@ -387,10 +374,6 @@ if [[ -z "$DASHCAM_IP" ]]; then
   read -rp "DashCam IP [default 192.168.43.1]: " DASHCAM_IP
   DASHCAM_IP="${DASHCAM_IP:-192.168.43.1}"
 fi
-if [[ -z "$PAIRING_TOKEN" ]]; then
-  read -rp "Pairing token: " PAIRING_TOKEN
-fi
-
 connect_viewer_wifi
 
 echo "Collecting Wi-Fi status"

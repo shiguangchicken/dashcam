@@ -38,10 +38,6 @@ class SettingsScreenTest {
             "settings_wake_word_field",
             "settings_hotspot_ssid_field",
             "settings_wifi_password_field",
-            "settings_pairing_token_field",
-            "settings_pairing_code_field",
-            "settings_refresh_pairing_button",
-            "settings_copy_pairing_button",
             "settings_save_button",
         ).forEach { tag ->
             composeRule.onNodeWithTag(tag).assertExists()
@@ -63,36 +59,32 @@ class SettingsScreenTest {
     }
 
     @Test
-    fun refreshPairingUpdatesEditableSettingsBeforeSave() {
+    fun savePreservesStoredHotspotCredentials() {
         var savedSettings: DashCamSettings? = null
         setSettingsContent(
+            settings = DashCamSettings(
+                deviceRole = DeviceRole.RECORDER,
+                hotspotSsid = "DIRECT-test",
+                hotspotPassword = "password123",
+            ),
             onSave = { savedSettings = it },
-            onRefreshPairing = {
-                it.copy(
-                    pairingToken = "new-token",
-                    pairingCode = "654321",
-                )
-            },
         )
 
-        composeRule.onNodeWithTag("settings_refresh_pairing_button").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings_save_button").performScrollTo().performClick()
 
-        assertEquals("new-token", savedSettings?.pairingToken)
-        assertEquals("654321", savedSettings?.pairingCode)
+        assertEquals("DIRECT-test", savedSettings?.hotspotSsid)
+        assertEquals("password123", savedSettings?.hotspotPassword)
     }
 
     private fun setSettingsContent(
         settings: DashCamSettings = DashCamSettings(deviceRole = DeviceRole.RECORDER),
         onSave: (DashCamSettings) -> Unit = {},
-        onRefreshPairing: (DashCamSettings) -> DashCamSettings = { it },
     ) {
         composeRule.setContent {
             MaterialTheme {
                 SettingsScreen(
                     settings = settings,
                     onSave = onSave,
-                    onRefreshPairing = onRefreshPairing,
                 )
             }
         }

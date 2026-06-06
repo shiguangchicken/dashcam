@@ -23,9 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.firmmy.dashcam.core.common.DeviceRole
 import com.firmmy.dashcam.core.database.DashCamSettings
@@ -36,11 +34,8 @@ fun SettingsScreen(
     settings: DashCamSettings,
     onSave: (DashCamSettings) -> Unit,
     modifier: Modifier = Modifier,
-    onRefreshPairing: (DashCamSettings) -> DashCamSettings = { it },
-    onCopyPairing: (DashCamSettings) -> Unit = {},
 ) {
     var editableSettings by remember(settings) { mutableStateOf(settings) }
-    val clipboardManager = LocalClipboardManager.current
 
     Column(
         modifier = modifier
@@ -169,7 +164,7 @@ fun SettingsScreen(
         }
 
         SettingSection("Remote access") {
-            Text("LocalOnlyHotspot uses system-generated SSID and password. Custom Wi-Fi credentials are not supported.")
+            Text("LocalOnlyHotspot uses system-generated SSID and password. The recorder shows a QR code when the hotspot is running.")
             OutlinedTextField(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -190,45 +185,6 @@ fun SettingsScreen(
                 readOnly = true,
                 singleLine = true,
             )
-            OutlinedTextField(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("settings_pairing_token_field"),
-                value = editableSettings.pairingToken,
-                onValueChange = { editableSettings = editableSettings.copy(pairingToken = it) },
-                label = { Text("Pairing token") },
-                singleLine = true,
-            )
-            OutlinedTextField(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("settings_pairing_code_field"),
-                value = editableSettings.pairingCode,
-                onValueChange = {},
-                label = { Text("Pairing code") },
-                readOnly = true,
-                singleLine = true,
-            )
-            Button(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("settings_refresh_pairing_button"),
-                onClick = { editableSettings = onRefreshPairing(editableSettings) },
-            ) {
-                Text("Refresh pairing")
-            }
-            Button(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("settings_copy_pairing_button"),
-                onClick = {
-                    val pairingText = buildPairingText(editableSettings)
-                    clipboardManager.setText(AnnotatedString(pairingText))
-                    onCopyPairing(editableSettings)
-                },
-            ) {
-                Text("Copy pairing")
-            }
         }
 
         Button(
@@ -241,14 +197,6 @@ fun SettingsScreen(
         }
     }
 }
-
-private fun buildPairingText(settings: DashCamSettings): String =
-    listOf(
-        "SSID: ${settings.hotspotSsid}",
-        "Password: ${settings.hotspotPassword}",
-        "Pairing code: ${settings.pairingCode}",
-        "Token: ${settings.pairingToken}",
-    ).joinToString(separator = "\n")
 
 @Composable
 private fun SettingSection(

@@ -15,8 +15,10 @@ import com.firmmy.dashcam.core.common.DashCamCommand
 import com.firmmy.dashcam.core.common.RecordingMode
 import com.firmmy.dashcam.core.common.RecordingStatus
 import com.firmmy.dashcam.core.network.AndroidLocalOnlyHotspotStarter
+import com.firmmy.dashcam.core.network.EmbeddedHttpServer
 import com.firmmy.dashcam.core.network.HotspotController
 import com.firmmy.dashcam.core.network.HotspotState
+import com.firmmy.dashcam.core.network.RemoteConnectionPayload
 import com.firmmy.dashcam.feature.recorder.RecorderScreen
 import com.firmmy.dashcam.feature.recorder.RecorderUiState
 
@@ -50,6 +52,7 @@ fun CameraBackedRecorderScreen(
         }
     }
     val hotspotState by hotspotController.state.collectAsState()
+    var addressesBeforeHotspot by remember { mutableStateOf(emptySet<String>()) }
 
     DisposableEffect(remoteServerController) {
         onDispose {
@@ -64,17 +67,32 @@ fun CameraBackedRecorderScreen(
                 remoteServerController.stop()
                 state.copy(
                     hotspotEnabled = false,
+                    remoteServerUrl = "",
+                    remoteQrText = "",
                     hotspotError = "",
                 )
             }
 
             HotspotState.Starting -> state.copy(
                 hotspotEnabled = false,
+                remoteServerUrl = "",
+                remoteQrText = "",
                 hotspotError = "Starting",
             )
 
             is HotspotState.Started -> {
                 remoteServerController.start()
+                val baseUrl = HotspotEndpointResolver.resolveBaseUrl(addressesBeforeHotspot)
+                val qrText = if (baseUrl.isNotBlank()) {
+                    RemoteConnectionPayload(
+                        ssid = currentHotspotState.credentials.ssid,
+                        password = currentHotspotState.credentials.password,
+                        baseUrl = baseUrl,
+                        port = EmbeddedHttpServer.DEFAULT_PORT,
+                    ).toQrText()
+                } else {
+                    ""
+                }
                 onHotspotCredentialsChanged(
                     currentHotspotState.credentials.ssid,
                     currentHotspotState.credentials.password,
@@ -83,12 +101,16 @@ fun CameraBackedRecorderScreen(
                     hotspotEnabled = true,
                     hotspotSsid = currentHotspotState.credentials.ssid,
                     hotspotPassword = currentHotspotState.credentials.password,
+                    remoteServerUrl = baseUrl,
+                    remoteQrText = qrText,
                     hotspotError = "",
                 )
             }
 
             is HotspotState.Failed -> state.copy(
                 hotspotEnabled = false,
+                remoteServerUrl = "",
+                remoteQrText = "",
                 hotspotError = currentHotspotState.message,
             )
         }
@@ -150,6 +172,7 @@ fun CameraBackedRecorderScreen(
             if (hotspotState is HotspotState.Started || hotspotState is HotspotState.Starting) {
                 hotspotController.stop()
             } else {
+                addressesBeforeHotspot = HotspotEndpointResolver.privateIpv4Addresses()
                 hotspotController.start()
             }
         },

@@ -36,7 +36,6 @@ class EmbeddedHttpServerTest {
     private val server = EmbeddedHttpServer(
         dataSource = dataSource,
         commandDispatcher = dispatcher,
-        tokenProvider = DashCamTokenProvider { "token" },
         host = "127.0.0.1",
         port = 0,
     )
@@ -48,45 +47,42 @@ class EmbeddedHttpServerTest {
     }
 
     @Test
-    fun statusRequiresBearerToken() = runBlocking {
+    fun statusIsAvailableOnLocalNetwork() = runBlocking {
         server.start()
 
         val response = client.get(baseUrl() + "/api/status")
 
-        assertEquals(HttpStatusCode.Unauthorized, response.status)
+        assertEquals(HttpStatusCode.OK, response.status)
     }
 
     @Test
     fun servesStatusMediaRangeAndSettings() = runBlocking {
         server.start()
 
-        val status = authedGet("/api/status").bodyAsText()
+        val status = getPath("/api/status").bodyAsText()
         assertEquals(RecordingStatus.RECORDING_DRIVING, RemoteJson.parseStatus(status).recordingStatus)
 
-        val media = authedGet("/api/media?type=video").bodyAsText()
+        val media = getPath("/api/media?type=video").bodyAsText()
         assertEquals(1, RemoteJson.parseMediaList(media).size)
 
-        val range = authedGet("/api/media/1/stream") {
+        val range = getPath("/api/media/1/stream") {
             header(HttpHeaders.Range, "bytes=1-3")
         }
         assertEquals(HttpStatusCode.PartialContent, range.status)
         assertEquals("bcd", range.bodyAsText())
 
-        val settings = authedGet("/api/settings").bodyAsText()
+        val settings = getPath("/api/settings").bodyAsText()
         assertEquals("1920x1080", RemoteJson.parseSettings(settings).drivingResolution)
     }
 
     @Test
-    fun commandAndDeleteRequireAuthAndCallDependencies() = runBlocking {
+    fun commandAndDeleteCallDependencies() = runBlocking {
         server.start()
 
         val command = client.post(baseUrl() + "/api/command") {
-            header(HttpHeaders.Authorization, "Bearer token")
             setBody(RemoteJson.commandBody(DashCamCommand.TakePhoto))
         }
-        val deleted = client.delete(baseUrl() + "/api/media/1") {
-            header(HttpHeaders.Authorization, "Bearer token")
-        }
+        val deleted = client.delete(baseUrl() + "/api/media/1")
 
         assertEquals(HttpStatusCode.OK, command.status)
         assertEquals(DashCamCommand.TakePhoto, dispatcher.commands.single())
@@ -98,7 +94,7 @@ class EmbeddedHttpServerTest {
     fun websocketSendsInitialStatus() = runBlocking {
         server.start()
 
-        client.webSocket(baseUrl().replace("http://", "ws://") + "/ws/events?token=token") {
+        client.webSocket(baseUrl().replace("http://", "ws://") + "/ws/events") {
             val frame = withTimeout(2_000L) { incoming.receive() } as Frame.Text
             assertTrue(frame.readText().contains("\"type\":\"status\""))
         }
@@ -109,7 +105,6 @@ class EmbeddedHttpServerTest {
         server.start()
         val remoteClient = RemoteDashCamClient(
             baseUrl = baseUrl(),
-            tokenProvider = DashCamTokenProvider { "token" },
             httpClient = client,
         )
 
@@ -124,26 +119,24 @@ class EmbeddedHttpServerTest {
     }
 
     @Test
-    fun remoteClientAssetUrlsCarryTokenForAndroidMediaViews() = runBlocking {
+    fun remoteClientAssetUrlsUsePlainLocalPaths() = runBlocking {
         server.start()
         val remoteClient = RemoteDashCamClient(
             baseUrl = baseUrl(),
-            tokenProvider = DashCamTokenProvider { "token with spaces" },
             httpClient = client,
         )
 
-        assertTrue(remoteClient.streamUrl(1).contains("/api/media/1/stream?token=token+with+spaces"))
-        assertTrue(remoteClient.thumbnailUrl(1).contains("/api/media/1/thumbnail?token=token+with+spaces"))
-        assertTrue(remoteClient.downloadUrl(1).contains("/api/media/1/download?token=token+with+spaces"))
+        assertTrue(remoteClient.streamUrl(1).endsWith("/api/media/1/stream"))
+        assertTrue(remoteClient.thumbnailUrl(1).endsWith("/api/media/1/thumbnail"))
+        assertTrue(remoteClient.downloadUrl(1).endsWith("/api/media/1/download"))
     }
 
     private suspend fun baseUrl(): String = "http://127.0.0.1:${server.resolvedPort()}"
 
-    private suspend fun authedGet(
+    private suspend fun getPath(
         path: String,
         block: io.ktor.client.request.HttpRequestBuilder.() -> Unit = {},
     ) = client.get(baseUrl() + path) {
-        header(HttpHeaders.Authorization, "Bearer token")
         block()
     }
 }
@@ -216,8 +209,6 @@ private class FakeRemoteDataSource : DashCamRemoteDataSource {
             audioEnabled = true,
             voiceWakeupEnabled = false,
             wakeWord = "小行车",
-            pairingToken = "token",
-            pairingCode = "123456",
         )
 
     override suspend fun saveSettings(settings: RemoteSettings): Boolean = true

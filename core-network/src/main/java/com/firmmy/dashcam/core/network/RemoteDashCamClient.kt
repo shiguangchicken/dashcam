@@ -23,14 +23,11 @@ import io.ktor.http.appendPathSegments
 
 class RemoteDashCamClient(
     private val baseUrl: String,
-    private val tokenProvider: DashCamTokenProvider,
     private val httpClient: HttpClient = defaultHttpClient(),
 ) {
     suspend fun status(): DashCamResult<RemoteStatus> =
         request {
-            val response = httpClient.get(apiUrl("status")) {
-                bearer()
-            }
+            val response = httpClient.get(apiUrl("status"))
             response.ensureSuccess()
             RemoteJson.parseStatus(response.body())
         }
@@ -38,7 +35,6 @@ class RemoteDashCamClient(
     suspend fun sendCommand(command: DashCamCommand): DashCamResult<RemoteApiResponse> =
         request {
             val response = httpClient.post(apiUrl("command")) {
-                bearer()
                 header(HttpHeaders.ContentType, "application/json")
                 setBody(RemoteJson.commandBody(command))
             }
@@ -52,7 +48,6 @@ class RemoteDashCamClient(
     ): DashCamResult<List<RemoteMediaItem>> =
         request {
             val response = httpClient.get(apiUrl("media")) {
-                bearer()
                 type?.let { parameter("type", it.storedValue) }
                 date?.let { parameter("date", it) }
             }
@@ -62,9 +57,7 @@ class RemoteDashCamClient(
 
     suspend fun settings(): DashCamResult<RemoteSettings> =
         request {
-            val response = httpClient.get(apiUrl("settings")) {
-                bearer()
-            }
+            val response = httpClient.get(apiUrl("settings"))
             response.ensureSuccess()
             RemoteJson.parseSettings(response.body())
         }
@@ -72,7 +65,6 @@ class RemoteDashCamClient(
     suspend fun saveSettings(settings: RemoteSettings): DashCamResult<RemoteApiResponse> =
         request {
             val response = httpClient.put(apiUrl("settings")) {
-                bearer()
                 header(HttpHeaders.ContentType, "application/json")
                 setBody(RemoteJson.settings(settings))
             }
@@ -82,36 +74,22 @@ class RemoteDashCamClient(
 
     suspend fun deleteMedia(id: Long): DashCamResult<RemoteApiResponse> =
         request {
-            val response = httpClient.delete(apiUrl("media", id.toString())) {
-                bearer()
-            }
+            val response = httpClient.delete(apiUrl("media", id.toString()))
             response.ensureSuccess()
             RemoteJson.parseResponse(response.body())
         }
 
-    fun thumbnailUrl(id: Long): String = apiUrl("media", id.toString(), "thumbnail", includeToken = true)
+    fun thumbnailUrl(id: Long): String = apiUrl("media", id.toString(), "thumbnail")
 
-    fun streamUrl(id: Long): String = apiUrl("media", id.toString(), "stream", includeToken = true)
+    fun streamUrl(id: Long): String = apiUrl("media", id.toString(), "stream")
 
-    fun downloadUrl(id: Long): String = apiUrl("media", id.toString(), "download", includeToken = true)
+    fun downloadUrl(id: Long): String = apiUrl("media", id.toString(), "download")
 
-    private fun apiUrl(
-        vararg segments: String,
-        includeToken: Boolean = false,
-    ): String {
+    private fun apiUrl(vararg segments: String): String {
         val url = Url(baseUrl.trimEnd('/'))
         return io.ktor.http.URLBuilder(url)
             .appendPathSegments(listOf("api") + segments)
-            .apply {
-                if (includeToken) {
-                    parameters.append("token", tokenProvider.currentToken())
-                }
-            }
             .buildString()
-    }
-
-    private fun io.ktor.client.request.HttpRequestBuilder.bearer() {
-        header(HttpHeaders.Authorization, "Bearer ${tokenProvider.currentToken()}")
     }
 
     private suspend fun HttpResponse.ensureSuccess() {

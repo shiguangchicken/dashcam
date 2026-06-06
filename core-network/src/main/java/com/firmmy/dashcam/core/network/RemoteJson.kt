@@ -57,8 +57,6 @@ object RemoteJson {
             .put("audioEnabled", value.audioEnabled)
             .put("voiceWakeupEnabled", value.voiceWakeupEnabled)
             .put("wakeWord", value.wakeWord)
-            .put("pairingToken", value.pairingToken)
-            .put("pairingCode", value.pairingCode)
             .toString()
 
     fun response(ok: Boolean, message: String = ""): String =
@@ -121,8 +119,6 @@ object RemoteJson {
             audioEnabled = json.getBoolean("audioEnabled"),
             voiceWakeupEnabled = json.getBoolean("voiceWakeupEnabled"),
             wakeWord = json.getString("wakeWord"),
-            pairingToken = json.getString("pairingToken"),
-            pairingCode = json.getString("pairingCode"),
         )
     }
 

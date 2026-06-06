@@ -41,7 +41,6 @@ class AppRemoteServerController(
                 context = applicationContext,
                 onHotspotCommand = onHotspotCommand,
             ),
-            tokenProvider = SettingsTokenProvider(settingsRepository),
         )
         created.start()
         advertiser.register()

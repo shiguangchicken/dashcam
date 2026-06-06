@@ -53,7 +53,7 @@ class RemoteViewerScreenInstrumentedTest {
             MaterialTheme {
                 RemoteViewerDetailContent(
                     item = media(1L, MediaType.VIDEO),
-                    streamUrl = "http://127.0.0.1:8080/api/media/1/stream?token=test",
+                    streamUrl = "http://127.0.0.1:8080/api/media/1/stream",
                     onBackClick = {},
                     onDeleteClick = {},
                 )
@@ -168,7 +168,7 @@ class RemoteViewerScreenInstrumentedTest {
             return true
         }
 
-        override fun streamUrl(id: Long): String = "http://127.0.0.1:8080/api/media/$id/stream?token=test"
+        override fun streamUrl(id: Long): String = "http://127.0.0.1:8080/api/media/$id/stream"
     }
 
     companion object {
@@ -199,8 +199,6 @@ class RemoteViewerScreenInstrumentedTest {
                 audioEnabled = true,
                 voiceWakeupEnabled = false,
                 wakeWord = wakeWord,
-                pairingToken = "token",
-                pairingCode = "123456",
             )
     }
 }

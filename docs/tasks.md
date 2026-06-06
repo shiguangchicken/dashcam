@@ -69,7 +69,7 @@
 ### Task 05：实现设置系统与设置页
 
 - [x] 在 `feature-settings` 实现设置页 UI。
-- [x] 支持设置项：本机角色、驾驶/停车分辨率、帧率、码率、分段时长、最大存储空间、最小保留空间、录音开关、语音唤醒开关、唤醒词、热点信息、配对 token。
+- [x] 支持设置项：本机角色、驾驶/停车分辨率、帧率、码率、分段时长、最大存储空间、最小保留空间、录音开关、语音唤醒开关、唤醒词、热点信息、QR 连接信息。
 - [x] 在 `core-database` 或独立 repository 中提供 `SettingsRepository`。
 - [x] 提供默认设置和非法值回退。
 - [x] 所有设置项添加稳定 `testTag`。
@@ -289,18 +289,20 @@ adb shell ls /sdcard/Android/data/com.firmmy.dashcam/files/DashCam/videos
 - [x] 2026-06-02 Mi 10 真机安装 `app-debug.apk` 后授权 Camera、Record Audio、Post Notifications、Fine Location、Nearby Wi-Fi Devices，记录仪页点击 `Hotspot on` 成功打开 LocalOnlyHotspot，APP 显示系统生成 SSID `AndroidShare_9985` 和系统生成密码。
 - [x] 2026-06-02 追加双机验收：Mi 10 记录仪端重新打开 LocalOnlyHotspot，APP 显示系统生成 SSID `AndroidShare_7609` 和系统生成密码；V2324A 远端通过 `adb shell cmd wifi connect-network` 连接 `AndroidShare_7609` 成功，`cmd wifi status` 连续 10 次轮询均显示 `Supplicant state: COMPLETED`，并能 ping 通热点网关，随后已在 V2324A 上忘记该临时网络。
 
-### Task 15：实现配对 token 与基础认证
+### Task 15：实现 QR 热点连接信息
 
-- [x] 首次启用远程访问时生成 token 和配对码。
-- [x] 在设置页展示、刷新、复制配对信息。
-- [x] HTTP 请求支持 `Authorization: Bearer <token>`。
-- [x] 删除文件、切换模式、修改设置等写操作必须鉴权。
-- [x] 添加认证成功、失败、缺失 token 测试。
+> 2026-06-06 设计变更：配对 token、配对码和 Bearer 鉴权已废弃。远程访问改为记录仪端显示 LocalOnlyHotspot 生成凭据和服务地址的 QR code；查看端扫描 QR 后连接该 Wi-Fi 并访问记录仪服务。
+
+- [x] 记录仪端读取 `startLocalOnlyHotspot()` 系统生成的 SSID 和密码。
+- [x] 记录仪端显示包含 SSID、密码、baseUrl、port 的 QR code。
+- [x] 查看端扫描 QR code 并按 SSID/密码请求连接 Wi-Fi。
+- [x] HTTP 请求不再要求 `Authorization: Bearer <token>`。
+- [x] 添加 QR payload 编解码测试。
 
 验收：
 
 ```bash
-./gradlew :core-network:testDebugUnitTest --tests '*Auth*'
+./gradlew :core-network:testDebugUnitTest --tests '*RemoteConnectionPayload*'
 ```
 
 验证记录：
@@ -310,6 +312,9 @@ adb shell ls /sdcard/Android/data/com.firmmy.dashcam/files/DashCam/videos
 - [x] 2026-06-02 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew ktlintCheck` 通过。
 - [x] 2026-06-02 `./gradlew :feature-settings:connectedDebugAndroidTest` 在 Mi 10/MIUI 上被 `INSTALL_FAILED_USER_RESTRICTED` 拦截；按屏幕提示点击 `继续安装` 手动安装测试 APK 后，直接运行 `/home/meng/Android/Sdk/platform-tools/adb shell am instrument -w -r com.firmmy.dashcam.feature.settings.test/androidx.test.runner.AndroidJUnitRunner` 通过，2 个设置页 instrumentation 测试均通过。
 - [x] 2026-06-02 追加重跑设置页“刷新配对信息并保存”单用例：恢复 `refreshPairingUpdatesEditableSettingsBeforeSave` 后，Mi 10 上手动安装测试 APK 并运行 `/home/meng/Android/Sdk/platform-tools/adb -s 4e348abc shell am instrument -w -r -e class com.firmmy.dashcam.feature.settings.SettingsScreenTest#refreshPairingUpdatesEditableSettingsBeforeSave com.firmmy.dashcam.feature.settings.test/androidx.test.runner.AndroidJUnitRunner` 通过，输出 `OK (1 test)`；V2324A 上同用例因系统阻止测试 Activity 前台启动仍返回 `Process crashed`。
+- [x] 2026-06-06 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew :core-network:testDebugUnitTest :feature-remote:compileDebugKotlin :feature-settings:compileDebugKotlin :app:compileDebugKotlin` 通过；覆盖 QR payload 编解码、无 Bearer 的 HTTP API/client、远程查看 UI 编译、设置页去除配对控件、APP QR 扫描/连接编译。
+- [x] 2026-06-06 双机局部验收：Mi 10 `4e348abc` 安装 debug APK 后进入记录仪页，点击 `Hotspot on` 成功显示系统 SSID `AndroidShare_4304`、系统密码、`Remote server` 为 `http://192.168.124.15:8080`，并显示 `Scan to connect` QR 区域；Samsung `RFCRA0JHHYW` 安装 debug APK 后进入远程查看页，显示 `Scan recorder QR` 入口，设置页远程访问区域不再显示配对 token/code。
+- [ ] 2026-06-06 未完整自动化：查看端物理扫描记录仪屏幕 QR code、Android 系统 Wi-Fi 连接确认弹窗、扫描后自动进入远程首页未通过 ADB 端到端执行；原因是 ADB 无法把 Samsung 摄像头物理对准 Mi 10 屏幕，且 `cmd wifi connect-network` 在 `RFCRA0JHHYW` 返回 shell 权限异常。已用 API 与 UI 局部验证替代。
 
 ### Task 16：实现内置 HTTP/WebSocket 服务
 
@@ -334,15 +339,18 @@ adb shell ls /sdcard/Android/data/com.firmmy.dashcam/files/DashCam/videos
 真机验收：
 
 ```bash
-curl -H "Authorization: Bearer $TOKEN" http://$DASHCAM_IP:8080/api/status
-curl -H "Authorization: Bearer $TOKEN" "http://$DASHCAM_IP:8080/api/media?type=video"
+curl http://$DASHCAM_IP:8080/api/status
+curl "http://$DASHCAM_IP:8080/api/media?type=video"
 ```
 
 验证记录：
 
 - [x] 2026-06-03 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew :core-network:testDebugUnitTest` 通过；覆盖 Bearer 鉴权、`GET /api/status`、`POST /api/command`、媒体列表、HTTP Range `GET /api/media/{id}/stream`、`GET /api/settings`、`DELETE /api/media/{id}`、WebSocket 初始状态事件、远程 client 基础调用。
+- [x] 2026-06-06 设计变更后重跑 `./gradlew :core-network:testDebugUnitTest` 通过；覆盖无 Bearer 鉴权的 `GET /api/status`、`POST /api/command`、媒体列表、HTTP Range、`GET /api/settings`、`DELETE /api/media/{id}`、WebSocket 初始状态事件、远程 client 基础调用。
 - [x] 2026-06-03 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew assembleDebug` 通过；记录仪端已接入热点开启后启动 8080 HTTP server 和 NSD 广播、热点关闭后停止 server。
 - [x] 2026-06-03 追加双机真机验收：Mi 10 记录仪端安装修复后 APK，打开 LocalOnlyHotspot 成功，UI 显示 SSID `AndroidShare_6428`、密码 `5hsg4z9q44qdsac`；logcat 显示 8080 HTTP server 可用且 NSD 注册 `DashCam` / `_dashcam._tcp.` 成功。V2324A 查看端通过 `adb shell cmd wifi connect-network AndroidShare_6428 wpa2 5hsg4z9q44qdsac` 接入热点，因系统 shell 无 curl/wget，使用 `nc` 手工发送 HTTP 请求，`GET /api/status` 返回 `HTTP/1.1 200 OK`，`GET /api/media?type=video` 返回 `HTTP/1.1 200 OK` 和 `{"items":[]}`。
+- [x] 2026-06-06 双机 API 验收：Mi 10 记录仪开启热点和 8080 服务后，Samsung 通过 `nc` 请求 `GET /api/status` 无 `Authorization` header 返回 `HTTP/1.1 200 OK`，body 包含 `hotspotSsid:"AndroidShare_4304"`、`hotspotEnabled:true`。
+- [ ] 2026-06-06 未完成 connected instrumentation：`ANDROID_SERIAL=RFCRA0JHHYW ./gradlew :feature-remote:connectedDebugAndroidTest :feature-settings:connectedDebugAndroidTest` 安装并开始运行后长时间无进度输出，停在 `SM-G7810 - 13 Tests 0/4 completed`，手动停止 Gradle wrapper；未作为通过结果记录。
 
 ### Task 17：实现远程 API Client 与服务发现
 

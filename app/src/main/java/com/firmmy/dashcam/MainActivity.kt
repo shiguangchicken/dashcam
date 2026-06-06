@@ -35,10 +35,8 @@ import com.firmmy.dashcam.core.database.MediaRepository
 import com.firmmy.dashcam.core.media.AndroidThumbnailGenerator
 import com.firmmy.dashcam.core.media.DashCamMediaDirectories
 import com.firmmy.dashcam.core.media.DashCamMediaRepository
-import com.firmmy.dashcam.core.network.PairingCredentialManager
 import com.firmmy.dashcam.feature.recorder.MediaBrowserItem
 import com.firmmy.dashcam.feature.recorder.MediaBrowserScreen
-import com.firmmy.dashcam.feature.remote.RemoteViewerScreen
 import com.firmmy.dashcam.feature.settings.SettingsScreen
 import com.firmmy.dashcam.ui.theme.DashCamTheme
 import kotlinx.coroutines.Dispatchers
@@ -124,10 +122,9 @@ fun DashCamApp(
             role = selectedRole ?: DeviceRole.RECORDER,
             settings = settings,
             onSettingsSaved = { updatedSettings ->
-                val settingsWithPairing = updatedSettings.withPairingCredentials()
-                onSettingsSaved(settingsWithPairing)
-                settings = settingsWithPairing
-                settingsWithPairing.deviceRole?.let { selectedRole = it }
+                onSettingsSaved(updatedSettings)
+                settings = updatedSettings
+                updatedSettings.deviceRole?.let { selectedRole = it }
             },
         )
     }
@@ -208,14 +205,7 @@ private fun HomeScreen(
     val context = LocalContext.current
 
     if (role == DeviceRole.REMOTE && !showSettings) {
-        RemoteViewerScreen(
-            client = remember(context, settings.pairingToken) {
-                AppRemoteViewerClient(
-                    context = context,
-                    tokenProvider = { settings.pairingToken },
-                )
-            },
-        )
+        RemoteConnectionScreen(context = context)
         return
     }
 
@@ -234,7 +224,7 @@ private fun HomeScreen(
                 val updatedSettings = settings.copy(
                     hotspotSsid = ssid,
                     hotspotPassword = password,
-                ).withPairingCredentials()
+                )
                 onSettingsSaved(updatedSettings)
             },
             onViewFilesClick = { showFiles = true },
@@ -263,30 +253,8 @@ private fun HomeScreen(
                     showSettings = false
                 }
             },
-            onRefreshPairing = { currentSettings ->
-                currentSettings.withNewPairingCredentials()
-            },
         )
     }
-}
-
-private fun DashCamSettings.withPairingCredentials(): DashCamSettings {
-    val credentials = PairingCredentialManager().ensure(
-        token = pairingToken,
-        pairingCode = pairingCode,
-    )
-    return copy(
-        pairingToken = credentials.token,
-        pairingCode = credentials.pairingCode,
-    )
-}
-
-private fun DashCamSettings.withNewPairingCredentials(): DashCamSettings {
-    val credentials = PairingCredentialManager().generate()
-    return copy(
-        pairingToken = credentials.token,
-        pairingCode = credentials.pairingCode,
-    )
 }
 
 @Composable

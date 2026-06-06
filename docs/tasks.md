@@ -315,6 +315,8 @@ adb shell ls /sdcard/Android/data/com.firmmy.dashcam/files/DashCam/videos
 - [x] 2026-06-06 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew :core-network:testDebugUnitTest :feature-remote:compileDebugKotlin :feature-settings:compileDebugKotlin :app:compileDebugKotlin` 通过；覆盖 QR payload 编解码、无 Bearer 的 HTTP API/client、远程查看 UI 编译、设置页去除配对控件、APP QR 扫描/连接编译。
 - [x] 2026-06-06 双机局部验收：Mi 10 `4e348abc` 安装 debug APK 后进入记录仪页，点击 `Hotspot on` 成功显示系统 SSID `AndroidShare_4304`、系统密码、`Remote server` 为 `http://192.168.124.15:8080`，并显示 `Scan to connect` QR 区域；Samsung `RFCRA0JHHYW` 安装 debug APK 后进入远程查看页，显示 `Scan recorder QR` 入口，设置页远程访问区域不再显示配对 token/code。
 - [ ] 2026-06-06 未完整自动化：查看端物理扫描记录仪屏幕 QR code、Android 系统 Wi-Fi 连接确认弹窗、扫描后自动进入远程首页未通过 ADB 端到端执行；原因是 ADB 无法把 Samsung 摄像头物理对准 Mi 10 屏幕，且 `cmd wifi connect-network` 在 `RFCRA0JHHYW` 返回 shell 权限异常。已用 API 与 UI 局部验证替代。
+- [x] 2026-06-07 修复查看端相机预览可见但无法识别 QR：将扫描器从 Play-services ML Kit 条码模型改为离线 ZXing YUV 帧解码，避免条码模型未下载/不可用导致只显示预览不出结果；同时把记录仪 QR 显示尺寸从 220dp 增加到 280dp。已运行 `./gradlew :app:compileDebugKotlin :core-network:testDebugUnitTest`、`./gradlew assembleDebug`、`./gradlew ktlintCheck`、`git diff --check` 均通过，并已在 Mi 10 `4e348abc`、Samsung `RFCRA0JHHYW` 安装新版 debug APK。
+- [ ] 2026-06-07 未完整自动化：新版 ZXing 扫描器的物理扫码识别需用户在两台手机上手持重试确认；ADB 不能模拟查看端摄像头对准记录仪屏幕 QR。
 
 ### Task 16：实现内置 HTTP/WebSocket 服务
 

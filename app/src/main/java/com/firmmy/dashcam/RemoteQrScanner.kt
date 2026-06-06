@@ -1,7 +1,7 @@
 package com.firmmy.dashcam
 
-import android.annotation.SuppressLint
 import android.content.Context
+import android.util.Size
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -18,9 +18,15 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import com.firmmy.dashcam.core.network.RemoteConnectionPayload
-import com.google.mlkit.vision.barcode.BarcodeScanning
-import com.google.mlkit.vision.common.InputImage
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.BinaryBitmap
+import com.google.zxing.DecodeHintType
+import com.google.zxing.MultiFormatReader
+import com.google.zxing.NotFoundException
+import com.google.zxing.PlanarYUVLuminanceSource
+import com.google.zxing.common.HybridBinarizer
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 @Composable
 fun RemoteQrScanner(
@@ -58,22 +64,37 @@ private fun bindQrScanner(
 ) {
     val lifecycleOwner = context as? LifecycleOwner ?: return
     val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-    val scanner = BarcodeScanning.getClient()
     cameraProviderFuture.addListener(
         {
             val cameraProvider = cameraProviderFuture.get()
+            val foundPayload = AtomicBoolean(false)
+            val reader = MultiFormatReader().apply {
+                setHints(
+                    mapOf(
+                        DecodeHintType.POSSIBLE_FORMATS to listOf(BarcodeFormat.QR_CODE),
+                        DecodeHintType.TRY_HARDER to true,
+                    ),
+                )
+            }
             val preview = Preview.Builder().build().also {
                 it.setSurfaceProvider(previewView.surfaceProvider)
             }
             val analysis = ImageAnalysis.Builder()
+                .setTargetResolution(Size(1280, 720))
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
                 .also {
                     it.setAnalyzer(executor) { imageProxy ->
                         scanImageProxy(
-                            scanner = scanner,
+                            reader = reader,
                             imageProxy = imageProxy,
-                            onPayloadScanned = onPayloadScanned,
+                            onPayloadScanned = { payload ->
+                                if (foundPayload.compareAndSet(false, true)) {
+                                    ContextCompat.getMainExecutor(context).execute {
+                                        onPayloadScanned(payload)
+                                    }
+                                }
+                            },
                         )
                     }
                 }
@@ -89,25 +110,42 @@ private fun bindQrScanner(
     )
 }
 
-@SuppressLint("UnsafeOptInUsageError")
 private fun scanImageProxy(
-    scanner: com.google.mlkit.vision.barcode.BarcodeScanner,
+    reader: MultiFormatReader,
     imageProxy: ImageProxy,
     onPayloadScanned: (RemoteConnectionPayload) -> Unit,
 ) {
-    val mediaImage = imageProxy.image
-    if (mediaImage == null) {
+    try {
+        val rawValue = reader.decodeQrText(imageProxy)
+        rawValue?.let(RemoteConnectionPayload::parse)?.let(onPayloadScanned)
+    } finally {
+        reader.reset()
         imageProxy.close()
-        return
     }
-    val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-    scanner.process(image)
-        .addOnSuccessListener { barcodes ->
-            barcodes.asSequence()
-                .mapNotNull { it.rawValue }
-                .mapNotNull(RemoteConnectionPayload::parse)
-                .firstOrNull()
-                ?.let(onPayloadScanned)
+}
+
+private fun MultiFormatReader.decodeQrText(imageProxy: ImageProxy): String? {
+    val yPlane = imageProxy.planes.firstOrNull() ?: return null
+    val buffer = yPlane.buffer
+    val bytes = ByteArray(buffer.remaining())
+    buffer.get(bytes)
+    val source = PlanarYUVLuminanceSource(
+        bytes,
+        yPlane.rowStride,
+        imageProxy.height,
+        0,
+        0,
+        imageProxy.width,
+        imageProxy.height,
+        false,
+    )
+    return runCatching {
+        decodeWithState(BinaryBitmap(HybridBinarizer(source))).text
+    }.recoverCatching { error ->
+        if (error is NotFoundException) {
+            decodeWithState(BinaryBitmap(HybridBinarizer(source.invert()))).text
+        } else {
+            throw error
         }
-        .addOnCompleteListener { imageProxy.close() }
+    }.getOrNull()
 }

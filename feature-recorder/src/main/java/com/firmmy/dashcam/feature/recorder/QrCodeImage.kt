@@ -21,7 +21,7 @@ fun QrCodeImage(
     Image(
         bitmap = bitmap.asImageBitmap(),
         contentDescription = "Remote connection QR code",
-        modifier = modifier.size(220.dp),
+        modifier = modifier.size(280.dp),
     )
 }
 

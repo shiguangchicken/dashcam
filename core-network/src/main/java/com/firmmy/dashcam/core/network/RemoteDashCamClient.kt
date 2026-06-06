@@ -89,16 +89,24 @@ class RemoteDashCamClient(
             RemoteJson.parseResponse(response.body())
         }
 
-    fun thumbnailUrl(id: Long): String = apiUrl("media", id.toString(), "thumbnail")
+    fun thumbnailUrl(id: Long): String = apiUrl("media", id.toString(), "thumbnail", includeToken = true)
 
-    fun streamUrl(id: Long): String = apiUrl("media", id.toString(), "stream")
+    fun streamUrl(id: Long): String = apiUrl("media", id.toString(), "stream", includeToken = true)
 
-    fun downloadUrl(id: Long): String = apiUrl("media", id.toString(), "download")
+    fun downloadUrl(id: Long): String = apiUrl("media", id.toString(), "download", includeToken = true)
 
-    private fun apiUrl(vararg segments: String): String {
+    private fun apiUrl(
+        vararg segments: String,
+        includeToken: Boolean = false,
+    ): String {
         val url = Url(baseUrl.trimEnd('/'))
         return io.ktor.http.URLBuilder(url)
             .appendPathSegments(listOf("api") + segments)
+            .apply {
+                if (includeToken) {
+                    parameters.append("token", tokenProvider.currentToken())
+                }
+            }
             .buildString()
     }
 

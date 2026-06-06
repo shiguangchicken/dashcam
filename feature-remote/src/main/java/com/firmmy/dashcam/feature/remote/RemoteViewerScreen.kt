@@ -499,10 +499,20 @@ fun RemoteViewerDetailContent(
                         val controller = MediaController(context)
                         controller.setAnchorView(this)
                         setMediaController(controller)
-                        setVideoPath(streamUrl)
+                        setOnErrorListener { _, _, _ -> true }
                     }
                 },
-                update = { view -> view.setVideoPath(streamUrl) },
+                update = { view ->
+                    if (view.tag != streamUrl) {
+                        view.stopPlayback()
+                        view.tag = streamUrl
+                        view.setVideoPath(streamUrl)
+                    }
+                },
+                onRelease = { view ->
+                    view.stopPlayback()
+                    view.setMediaController(null)
+                },
             )
         } else {
             Text(

@@ -123,6 +123,20 @@ class EmbeddedHttpServerTest {
         assertEquals(DashCamCommand.StartParkingMode, dispatcher.commands.last())
     }
 
+    @Test
+    fun remoteClientAssetUrlsCarryTokenForAndroidMediaViews() = runBlocking {
+        server.start()
+        val remoteClient = RemoteDashCamClient(
+            baseUrl = baseUrl(),
+            tokenProvider = DashCamTokenProvider { "token with spaces" },
+            httpClient = client,
+        )
+
+        assertTrue(remoteClient.streamUrl(1).contains("/api/media/1/stream?token=token+with+spaces"))
+        assertTrue(remoteClient.thumbnailUrl(1).contains("/api/media/1/thumbnail?token=token+with+spaces"))
+        assertTrue(remoteClient.downloadUrl(1).contains("/api/media/1/download?token=token+with+spaces"))
+    }
+
     private suspend fun baseUrl(): String = "http://127.0.0.1:${server.resolvedPort()}"
 
     private suspend fun authedGet(

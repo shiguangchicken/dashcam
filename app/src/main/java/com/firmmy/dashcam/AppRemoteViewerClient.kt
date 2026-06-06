@@ -5,6 +5,7 @@ import com.firmmy.dashcam.core.common.DashCamCommand
 import com.firmmy.dashcam.core.common.DashCamResult
 import com.firmmy.dashcam.core.common.MediaType
 import com.firmmy.dashcam.core.network.CompositeRemoteServiceDiscovery
+import com.firmmy.dashcam.core.network.EmbeddedHttpServer
 import com.firmmy.dashcam.core.network.ManualRemoteServiceDiscovery
 import com.firmmy.dashcam.core.network.NsdRemoteServiceDiscovery
 import com.firmmy.dashcam.core.network.RemoteDashCamClient
@@ -14,6 +15,7 @@ import com.firmmy.dashcam.core.network.RemoteSettings
 import com.firmmy.dashcam.core.network.RemoteStatus
 import com.firmmy.dashcam.core.network.WifiGatewayRemoteServiceDiscovery
 import com.firmmy.dashcam.feature.remote.RemoteViewerClient
+import java.net.URI
 
 class AppRemoteViewerClient(
     context: Context,
@@ -64,9 +66,14 @@ class AppRemoteViewerClient(
         client ?: error("Remote client is not connected")
 
     private fun String.manualEndpoint(): RemoteServiceEndpoint? {
-        if (isBlank()) return null
-        val host = trim().removePrefix("http://").removePrefix("https://").substringBefore(":")
-        val port = substringAfter(":", "8080").toIntOrNull() ?: 8080
+        val endpoint = trim()
+        if (endpoint.isBlank()) return null
+        val uri = runCatching {
+            URI(if ("://" in endpoint) endpoint else "http://$endpoint")
+        }.getOrNull()
+        val host = uri?.host?.takeIf { it.isNotBlank() }
+            ?: endpoint.removePrefix("http://").removePrefix("https://").substringBefore(":")
+        val port = uri?.port?.takeIf { it > 0 } ?: EmbeddedHttpServer.DEFAULT_PORT
         return RemoteServiceEndpoint(host = host, port = port)
     }
 

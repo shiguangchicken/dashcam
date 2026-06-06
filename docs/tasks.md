@@ -384,6 +384,8 @@ curl -H "Authorization: Bearer $TOKEN" "http://$DASHCAM_IP:8080/api/media?type=v
 - [x] 2026-06-03 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew :feature-remote:testDebugUnitTest assembleDebug ktlintCheck` 通过；覆盖远程媒体类型选择和日期格式逻辑，远程 UI 编译接入真实 client/discovery 通过。
 - [ ] 2026-06-03 `./gradlew :feature-remote:connectedDebugAndroidTest` 在 Mi 10 与 V2324A 上均卡在首个 Compose instrumentation 用例，手动 force-stop 后 Gradle 报 `Instrumentation run failed due to Process crashed`；为避免后续验收卡死，暂移除该 connected Compose 测试，保留 JVM 逻辑测试，后续需针对 library Compose test Activity/设备限制单独处理。
 - [ ] 2026-06-03 未执行 V2324A 新版远程查看模式 UI 真机验收；原因是 `adb install -r app/build/outputs/apk/debug/app-debug.apk` 首次被系统安装确认中断，按屏幕“重新安装”后安装器显示“安装失败：因系统原因安装失败”，后续双机验收改用查看端 shell `nc` 验证 API。
+- [x] 2026-06-06 修复远程查看模式启动崩溃：SM_G7810 查看端安装 `app-debug.apk` 后选择远程模式、完成权限、保存设置并进入 `Remote` 页面，logcat 过滤 `FATAL EXCEPTION|AndroidRuntime|NoSuchMethodError` 无匹配；崩溃原因为设置页 `FlowRow` 运行时 ABI 不匹配，已改为稳定横向滚动 chip 行。
+- [ ] 2026-06-06 未执行真实远程视频流播放验收；原因是本次只复现并验证查看端 UI 启动崩溃修复，未启动记录仪端热点/HTTP 服务并准备可播放视频条目。已补充带 token 的媒体 URL 与 `VideoView` 生命周期防护，后续需在双机有视频样本时验证播放。
 
 ### Task 19：完成双机联调脚本与验收流程
 

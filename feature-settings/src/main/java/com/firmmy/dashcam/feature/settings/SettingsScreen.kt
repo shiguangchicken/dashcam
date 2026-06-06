@@ -1,11 +1,10 @@
 package com.firmmy.dashcam.feature.settings
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -32,7 +31,6 @@ import com.firmmy.dashcam.core.common.DeviceRole
 import com.firmmy.dashcam.core.database.DashCamSettings
 import com.firmmy.dashcam.core.database.SettingsDefaults
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     settings: DashCamSettings,
@@ -306,7 +304,6 @@ private fun IntChoiceRow(
 }
 
 @Composable
-@OptIn(ExperimentalLayoutApi::class)
 private fun <T> SingleChoiceRow(
     label: String,
     tag: String,
@@ -320,9 +317,11 @@ private fun <T> SingleChoiceRow(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(label)
-        FlowRow(
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             options.forEach { option ->
                 FilterChip(

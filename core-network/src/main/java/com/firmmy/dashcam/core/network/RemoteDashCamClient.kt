@@ -85,6 +85,8 @@ class RemoteDashCamClient(
 
     fun downloadUrl(id: Long): String = apiUrl("media", id.toString(), "download")
 
+    fun liveStreamUrl(): String = apiUrl("live.mjpeg")
+
     private fun apiUrl(vararg segments: String): String {
         val url = Url(baseUrl.trimEnd('/'))
         return io.ktor.http.URLBuilder(url)

@@ -356,7 +356,9 @@ start_role_if_needed "$RECORDER_SERIAL" "Recorder mode"
 start_role_if_needed "$VIEWER_SERIAL" "Remote viewer mode"
 
 echo "On recorder $RECORDER_SERIAL, choose Recorder mode and tap Hotspot on if automation does not do it."
-scroll_and_tap_text "$RECORDER_SERIAL" "Hotspot on" || true
+scroll_and_tap_text "$RECORDER_SERIAL" "Hotspot on" ||
+  scroll_and_tap_text "$RECORDER_SERIAL" "WIFI" ||
+  true
 sleep 8
 refresh_recorder_settings_from_db
 
@@ -396,6 +398,26 @@ fi
 
 echo "Checking /api/media/$VIDEO_ID/stream Range playback"
 api_range_to_file "$VIDEO_ID" "$REPORT_DIR/media_${VIDEO_ID}_range.bin"
+
+echo "Checking /api/live.mjpeg while recorder is actively recording"
+api_post_command_to_file "driving" "$REPORT_DIR/live_start_command.json"
+sleep 8
+api_get_to_file "/api/status" "$REPORT_DIR/live_status.json"
+if ! grep -q '"liveStreamAvailable":true' "$REPORT_DIR/live_status.json"; then
+  echo "Live stream was not advertised while recording." >&2
+  cat "$REPORT_DIR/live_status.json" >&2
+  exit 1
+fi
+timeout 8 curl -fsS "http://$DASHCAM_IP:8080/api/live.mjpeg" > "$REPORT_DIR/live_preview.mjpeg" ||
+  timeout 8 "$ADB" -s "$VIEWER_SERIAL" shell curl -fsS "http://$DASHCAM_IP:8080/api/live.mjpeg" > "$REPORT_DIR/live_preview.mjpeg" || {
+    echo "Live MJPEG request failed while recording." >&2
+    exit 1
+  }
+grep -q -- "--dashcam-frame" "$REPORT_DIR/live_preview.mjpeg" || {
+  echo "Live MJPEG response did not include the expected multipart boundary." >&2
+  exit 1
+}
+api_post_command_to_file "stop" "$REPORT_DIR/live_stop_command.json" || true
 
 echo "Triggering remote photo command"
 api_post_command_to_file "photo" "$REPORT_DIR/photo_command.json"

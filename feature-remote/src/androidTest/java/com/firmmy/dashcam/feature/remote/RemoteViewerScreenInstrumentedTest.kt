@@ -169,6 +169,8 @@ class RemoteViewerScreenInstrumentedTest {
         }
 
         override fun streamUrl(id: Long): String = "http://127.0.0.1:8080/api/media/$id/stream"
+
+        override fun liveStreamUrl(): String = "http://127.0.0.1:8080/api/live.mjpeg"
     }
 
     companion object {

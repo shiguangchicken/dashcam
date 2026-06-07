@@ -4,6 +4,7 @@ import android.graphics.BitmapFactory
 import android.widget.MediaController
 import android.widget.VideoView
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -33,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
@@ -246,24 +248,61 @@ private fun MediaRow(
             .clickable(onClick = onClick)
             .testTag("media_item_${item.id}"),
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp)
                 .semantics(mergeDescendants = true) {},
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
+            MediaThumbnail(item)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = item.path.substringAfterLast('/').ifBlank {
+                        DashCamFormatters.formatTimestamp(item.createdAt)
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text("${item.mode.label} · ${DashCamFormatters.formatFileSize(item.sizeBytes)}")
+                Text(
+                    text = listOfNotNull(
+                        item.durationMs?.let(DashCamFormatters::formatDuration),
+                        if (item.locked) "Locked" else null,
+                    ).joinToString(" · ").ifBlank { item.type.name.lowercase() },
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MediaThumbnail(item: MediaBrowserItem) {
+    val bitmap = remember(item.thumbnailPath, item.path, item.type) {
+        BitmapFactory.decodeFile(item.thumbnailPath ?: item.path)
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth(0.32f)
+            .aspectRatio(16f / 9f)
+            .background(Color(0xFF0A0E14)),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (bitmap == null) {
             Text(
-                text = DashCamFormatters.formatTimestamp(item.createdAt),
-                style = MaterialTheme.typography.titleMedium,
+                text = if (item.type == MediaType.VIDEO) "VIDEO" else "PHOTO",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Text("${item.mode.label} · ${DashCamFormatters.formatFileSize(item.sizeBytes)}")
-            Text(
-                text = listOfNotNull(
-                    item.durationMs?.let(DashCamFormatters::formatDuration),
-                    if (item.locked) "Locked" else null,
-                ).joinToString(" · ").ifBlank { item.type.name.lowercase() },
-                style = MaterialTheme.typography.bodySmall,
+        } else {
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
             )
         }
     }

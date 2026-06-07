@@ -18,6 +18,7 @@ object RemoteJson {
             .put("freeSpaceBytes", value.freeSpaceBytes)
             .putNullable("batteryPercent", value.batteryPercent)
             .putNullable("temperatureCelsius", value.temperatureCelsius)
+            .put("liveStreamAvailable", value.liveStreamAvailable)
             .toString()
 
     fun mediaList(items: List<RemoteMediaItem>): String =
@@ -96,6 +97,7 @@ object RemoteJson {
             freeSpaceBytes = json.optLong("freeSpaceBytes", 0L),
             batteryPercent = json.nullableInt("batteryPercent"),
             temperatureCelsius = json.nullableDouble("temperatureCelsius")?.toFloat(),
+            liveStreamAvailable = json.optBoolean("liveStreamAvailable", false),
         )
     }
 

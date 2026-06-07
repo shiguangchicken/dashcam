@@ -15,6 +15,7 @@ import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
+import io.ktor.client.statement.readRawBytes
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.websocket.Frame
@@ -129,6 +130,29 @@ class EmbeddedHttpServerTest {
         assertTrue(remoteClient.streamUrl(1).endsWith("/api/media/1/stream"))
         assertTrue(remoteClient.thumbnailUrl(1).endsWith("/api/media/1/thumbnail"))
         assertTrue(remoteClient.downloadUrl(1).endsWith("/api/media/1/download"))
+        assertTrue(remoteClient.liveStreamUrl().endsWith("/api/live.mjpeg"))
+    }
+
+    @Test
+    fun livePreviewUnavailableReturnsServiceUnavailable() = runBlocking {
+        server.start()
+
+        val response = getPath("/api/live.mjpeg")
+
+        assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+    }
+
+    @Test
+    fun livePreviewStreamsMultipartJpegFrames() = runBlocking {
+        dataSource.liveFrame = byteArrayOf(0x01, 0x02, 0x03)
+        server.start()
+
+        val response = getPath("/api/live.mjpeg")
+        val body = withTimeout(2_000L) { response.readRawBytes() }.decodeToString()
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(body.contains("--dashcam-frame"))
+        assertTrue(body.contains("Content-Type: image/jpeg"))
     }
 
     private suspend fun baseUrl(): String = "http://127.0.0.1:${server.resolvedPort()}"
@@ -156,6 +180,7 @@ private class FakeRemoteDataSource : DashCamRemoteDataSource {
     private val thumbnail = tempDir.resolve("thumb.jpg").also { it.writeText("jpg") }
 
     val deletedIds = mutableListOf<Long>()
+    var liveFrame: ByteArray? = null
 
     override suspend fun status(): RemoteStatus =
         RemoteStatus(
@@ -165,6 +190,7 @@ private class FakeRemoteDataSource : DashCamRemoteDataSource {
             hotspotEnabled = true,
             hotspotSsid = "DashCam",
             freeSpaceBytes = 123L,
+            liveStreamAvailable = liveFrame != null,
         )
 
     override suspend fun listMedia(
@@ -189,6 +215,8 @@ private class FakeRemoteDataSource : DashCamRemoteDataSource {
 
     override suspend fun mediaStream(id: Long): RemoteMediaAsset? =
         if (id == 1L) RemoteMediaAsset(mediaFile, "video/mp4") else null
+
+    override suspend fun livePreviewFrame(): ByteArray? = liveFrame.also { liveFrame = null }
 
     override suspend fun deleteMedia(id: Long): Boolean {
         deletedIds += id

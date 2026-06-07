@@ -16,6 +16,7 @@ import io.ktor.server.request.receiveText
 import io.ktor.server.response.header
 import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondFile
+import io.ktor.server.response.respondOutputStream
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
@@ -25,7 +26,9 @@ import io.ktor.server.routing.routing
 import io.ktor.server.websocket.WebSockets
 import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.send
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.isActive
 
 class EmbeddedHttpServer(
     private val dataSource: DashCamRemoteDataSource,
@@ -90,6 +93,15 @@ class EmbeddedHttpServer(
             get("/api/media/{id}/download") {
                 val id = call.mediaId() ?: return@get
                 call.respondAsset(dataSource.mediaDownload(id), inline = false)
+            }
+
+            get("/api/live.mjpeg") {
+                val firstFrame = dataSource.livePreviewFrame()
+                    ?: return@get call.respondJson(
+                        RemoteJson.response(ok = false, message = "Live preview unavailable"),
+                        HttpStatusCode.ServiceUnavailable,
+                    )
+                call.respondMjpeg(firstFrame)
             }
 
             delete("/api/media/{id}") {
@@ -178,6 +190,25 @@ class EmbeddedHttpServer(
         return true
     }
 
+    private suspend fun io.ktor.server.application.ApplicationCall.respondMjpeg(firstFrame: ByteArray) {
+        respondOutputStream(
+            contentType = ContentType.parse("multipart/x-mixed-replace; boundary=$MJPEG_BOUNDARY"),
+            status = HttpStatusCode.OK,
+        ) {
+            var frame = firstFrame
+            while (kotlin.coroutines.coroutineContext.isActive) {
+                write("--$MJPEG_BOUNDARY\r\n".toByteArray())
+                write("Content-Type: image/jpeg\r\n".toByteArray())
+                write("Content-Length: ${frame.size}\r\n\r\n".toByteArray())
+                write(frame)
+                write("\r\n".toByteArray())
+                flush()
+                delay(MJPEG_FRAME_INTERVAL_MS)
+                frame = dataSource.livePreviewFrame() ?: break
+            }
+        }
+    }
+
     private fun parseSingleByteRange(header: String, size: Long): Pair<Long, Long>? {
         if (!header.startsWith("bytes=") || size <= 0L) return null
         val parts = header.removePrefix("bytes=").split("-", limit = 2)
@@ -206,5 +237,7 @@ class EmbeddedHttpServer(
     companion object {
         const val DEFAULT_HOST = "0.0.0.0"
         const val DEFAULT_PORT = 8080
+        private const val MJPEG_BOUNDARY = "dashcam-frame"
+        private const val MJPEG_FRAME_INTERVAL_MS = 200L
     }
 }

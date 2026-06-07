@@ -25,6 +25,7 @@ import com.firmmy.dashcam.core.voice.VoiceRuntimeConditions
 import com.firmmy.dashcam.core.voice.VoiceSafetyPolicy
 import com.firmmy.dashcam.feature.recorder.RecorderScreen
 import com.firmmy.dashcam.feature.recorder.RecorderUiState
+import kotlinx.coroutines.delay
 
 @Composable
 fun CameraBackedRecorderScreen(
@@ -36,6 +37,8 @@ fun CameraBackedRecorderScreen(
     onSettingsClick: () -> Unit = {},
 ) {
     var state by remember { mutableStateOf(RecorderUiState()) }
+    var recordingStartedAtMillis by remember { mutableStateOf<Long?>(null) }
+    var lastRuntimeStatus by remember { mutableStateOf(RecordingStatus.IDLE) }
     val applicationContext = context.applicationContext
     val hotspotController = remember(applicationContext) {
         HotspotController(AndroidLocalOnlyHotspotStarter(applicationContext))
@@ -94,6 +97,7 @@ fun CameraBackedRecorderScreen(
         state = when (val currentHotspotState = hotspotState) {
             HotspotState.Stopped -> {
                 remoteServerController.stop()
+                RecorderRuntimeState.updateHotspot(enabled = false, ssid = "")
                 state.copy(
                     hotspotEnabled = false,
                     remoteServerUrl = "",
@@ -111,6 +115,10 @@ fun CameraBackedRecorderScreen(
 
             is HotspotState.Started -> {
                 remoteServerController.start()
+                RecorderRuntimeState.updateHotspot(
+                    enabled = true,
+                    ssid = currentHotspotState.credentials.ssid,
+                )
                 val baseUrl = HotspotEndpointResolver.resolveBaseUrl(addressesBeforeHotspot)
                 val qrText = if (baseUrl.isNotBlank()) {
                     RemoteConnectionPayload(
@@ -145,23 +153,54 @@ fun CameraBackedRecorderScreen(
         }
     }
 
+    LaunchedEffect(state.recordingStatus, recordingStartedAtMillis) {
+        val startedAt = recordingStartedAtMillis ?: return@LaunchedEffect
+        while (state.recordingStatus != RecordingStatus.IDLE) {
+            state = state.copy(currentSegmentMillis = System.currentTimeMillis() - startedAt)
+            delay(1_000L)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            val runtimeStatus = RecorderRuntimeState.status()
+            val runtimeRecordingStatus = runtimeStatus.recordingStatus
+            if (runtimeRecordingStatus != lastRuntimeStatus) {
+                recordingStartedAtMillis = if (runtimeRecordingStatus == RecordingStatus.IDLE) {
+                    null
+                } else {
+                    System.currentTimeMillis()
+                }
+                lastRuntimeStatus = runtimeRecordingStatus
+            }
+            state = state.copy(
+                mode = runtimeStatus.mode,
+                recordingStatus = runtimeRecordingStatus,
+                audioEnabled = runtimeStatus.audioEnabled,
+                remainingStorageBytes = runtimeStatus.freeSpaceBytes.takeIf { it > 0L }
+                    ?: state.remainingStorageBytes,
+                currentSegmentMillis = if (runtimeRecordingStatus == RecordingStatus.IDLE) {
+                    0L
+                } else {
+                    state.currentSegmentMillis
+                },
+            )
+            delay(1_000L)
+        }
+    }
+
     RecorderScreen(
         modifier = modifier,
         state = state,
         onStartStopClick = {
-            state = if (state.recordingStatus == RecordingStatus.IDLE) {
+            if (state.recordingStatus == RecordingStatus.IDLE) {
                 val action = when (state.mode) {
                     RecordingMode.PARKING -> RecorderForegroundService.ACTION_START_PARKING
                     else -> RecorderForegroundService.ACTION_START_DRIVING
                 }
                 context.startRecorderForegroundService(action, state.audioEnabled)
-                state.toRecordingState()
             } else {
                 context.startRecorderForegroundService(RecorderForegroundService.ACTION_STOP)
-                state.copy(
-                    recordingStatus = RecordingStatus.IDLE,
-                    currentSegmentMillis = 0L,
-                )
             }
         },
         onDrivingModeClick = {
@@ -209,15 +248,6 @@ fun CameraBackedRecorderScreen(
         onSettingsClick = onSettingsClick,
     )
 }
-
-private fun RecorderUiState.toRecordingState(): RecorderUiState =
-    copy(
-        recordingStatus = when (mode) {
-            RecordingMode.PARKING -> RecordingStatus.RECORDING_PARKING
-            else -> RecordingStatus.RECORDING_DRIVING
-        },
-        currentSegmentMillis = 1_000L,
-    )
 
 private fun Context.startRecorderForegroundService(
     action: String,

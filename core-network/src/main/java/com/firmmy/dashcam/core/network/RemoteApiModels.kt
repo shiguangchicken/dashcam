@@ -15,6 +15,7 @@ data class RemoteStatus(
     val freeSpaceBytes: Long = 0L,
     val batteryPercent: Int? = null,
     val temperatureCelsius: Float? = null,
+    val liveStreamAvailable: Boolean = false,
 )
 
 data class RemoteMediaItem(
@@ -77,6 +78,8 @@ interface DashCamRemoteDataSource {
     suspend fun mediaStream(id: Long): RemoteMediaAsset?
 
     suspend fun mediaDownload(id: Long): RemoteMediaAsset? = mediaStream(id)
+
+    suspend fun livePreviewFrame(): ByteArray? = null
 
     suspend fun deleteMedia(id: Long): Boolean
 

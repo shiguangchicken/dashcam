@@ -1,6 +1,8 @@
 package com.firmmy.dashcam.feature.settings
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,8 +11,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -23,7 +27,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.firmmy.dashcam.core.common.DeviceRole
 import com.firmmy.dashcam.core.database.DashCamSettings
@@ -41,6 +48,7 @@ fun SettingsScreen(
         modifier = modifier
             .testTag("settings_screen")
             .verticalScroll(rememberScrollState())
+            .background(MaterialTheme.colorScheme.background)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
@@ -191,6 +199,7 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("settings_save_button"),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
             onClick = { onSave(editableSettings) },
         ) {
             Text("Save")
@@ -204,11 +213,19 @@ private fun SettingSection(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xFF181C22))
+            .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(8.dp))
+            .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Bold,
         )
         content()
     }

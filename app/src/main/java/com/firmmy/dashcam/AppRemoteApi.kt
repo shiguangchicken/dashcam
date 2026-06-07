@@ -34,13 +34,14 @@ class AppRemoteDataSource(
     override suspend fun status(): RemoteStatus {
         val settings = settingsRepository.getSettings()
         val root = directories.ensureBaseDirectories().root
-        return RemoteStatus(
-            recordingStatus = RecordingStatus.IDLE,
-            mode = RecordingMode.DRIVING,
+        val runtimeStatus = RecorderRuntimeState.status()
+        return runtimeStatus.copy(
             audioEnabled = settings.audioEnabled,
             hotspotEnabled = settings.hotspotSsid.isNotBlank(),
             hotspotSsid = settings.hotspotSsid,
             freeSpaceBytes = root.usableSpace,
+            liveStreamAvailable = RecorderRuntimeState.livePreviewFrame() != null &&
+                runtimeStatus.recordingStatus != RecordingStatus.IDLE,
         )
     }
 
@@ -71,6 +72,8 @@ class AppRemoteDataSource(
         }
         return File(media.path).toSafeAsset(contentType = contentType)
     }
+
+    override suspend fun livePreviewFrame(): ByteArray? = RecorderRuntimeState.livePreviewFrame()
 
     override suspend fun deleteMedia(id: Long): Boolean =
         dashCamMediaRepository.deleteMedia(id).isSuccess

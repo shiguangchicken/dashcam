@@ -56,6 +56,7 @@ class RecorderForegroundService : Service(), LifecycleOwner {
         super.onCreate()
         createNotificationChannel()
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
+        publishRuntimeStatus()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -75,6 +76,9 @@ class RecorderForegroundService : Service(), LifecycleOwner {
         runBlocking {
             dependencies?.controller?.stopRecording(reason = "service_destroyed")
         }
+        currentStatus = RecordingStatus.IDLE
+        RecorderRuntimeState.clearLivePreviewFrame()
+        publishRuntimeStatus()
         serviceScope.cancel()
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
         super.onDestroy()
@@ -102,6 +106,7 @@ class RecorderForegroundService : Service(), LifecycleOwner {
             return
         }
         if (action != ACTION_STOP) {
+            publishRuntimeStatus()
             updateNotification()
         }
     }
@@ -135,6 +140,7 @@ class RecorderForegroundService : Service(), LifecycleOwner {
         if (result is DashCamResult.Success) {
             currentMode = profile.mode
             currentStatus = profile.mode.toRecordingStatus()
+            publishRuntimeStatus()
         } else if (result is DashCamResult.Failure) {
             Log.w(TAG, "Recording command failed: ${result.error.message}")
         }
@@ -145,6 +151,7 @@ class RecorderForegroundService : Service(), LifecycleOwner {
         val settings = repository.getSettings()
         repository.saveSettings(settings.copy(audioEnabled = enabled))
         audioEnabled = enabled
+        publishRuntimeStatus()
     }
 
     private suspend fun stopRecording() {
@@ -152,6 +159,8 @@ class RecorderForegroundService : Service(), LifecycleOwner {
         if (result is DashCamResult.Success || currentStatus != RecordingStatus.IDLE) {
             currentStatus = RecordingStatus.IDLE
         }
+        RecorderRuntimeState.clearLivePreviewFrame()
+        publishRuntimeStatus()
         if (result is DashCamResult.Failure) {
             Log.w(TAG, "Stop recording failed: ${result.error.message}")
         }
@@ -222,6 +231,16 @@ class RecorderForegroundService : Service(), LifecycleOwner {
     private fun updateNotification() {
         val manager = getSystemService(NotificationManager::class.java)
         manager.notify(NOTIFICATION_ID, buildNotification())
+    }
+
+    private fun publishRuntimeStatus() {
+        val remaining = dependencies?.directories?.ensureBaseDirectories()?.root?.usableSpace ?: 0L
+        RecorderRuntimeState.updateStatus(
+            recordingStatus = currentStatus,
+            mode = currentMode,
+            audioEnabled = audioEnabled,
+            freeSpaceBytes = remaining,
+        )
     }
 
     private fun buildNotification(): Notification {

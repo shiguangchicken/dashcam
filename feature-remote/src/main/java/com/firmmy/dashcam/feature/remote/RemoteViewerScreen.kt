@@ -2,9 +2,13 @@ package com.firmmy.dashcam.feature.remote
 
 import android.widget.MediaController
 import android.widget.VideoView
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -32,7 +36,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -64,6 +71,8 @@ interface RemoteViewerClient {
     suspend fun saveSettings(settings: RemoteSettings): Boolean
 
     fun streamUrl(id: Long): String
+
+    fun liveStreamUrl(): String
 }
 
 data class RemoteViewerUiState(
@@ -182,6 +191,7 @@ fun RemoteViewerScreen(
                 state = state.copy(message = if (ok) "" else "Settings save failed")
             }
         },
+        liveStreamUrl = { client.liveStreamUrl() },
     )
 }
 
@@ -197,6 +207,7 @@ fun RemoteViewerContent(
     onItemSelected: (RemoteMediaItem) -> Unit = {},
     onSettingsChanged: (RemoteSettings) -> Unit = {},
     onSaveSettingsClick: () -> Unit = {},
+    liveStreamUrl: () -> String = { "" },
 ) {
     Column(
         modifier = modifier
@@ -220,6 +231,10 @@ fun RemoteViewerContent(
             RemoteStatusPanel(
                 status = state.status,
                 onRefreshClick = onRefreshClick,
+            )
+            RemoteLivePreviewPanel(
+                status = state.status,
+                streamUrl = liveStreamUrl(),
             )
             RemoteControlPanel(
                 audioEnabled = state.status.audioEnabled,
@@ -327,6 +342,72 @@ private fun RemoteStatusRow(
     ) {
         Text(label)
         Text(value)
+    }
+}
+
+@Composable
+private fun RemoteLivePreviewPanel(
+    status: RemoteStatus,
+    streamUrl: String,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Live view", style = MaterialTheme.typography.titleMedium)
+            Text(
+                if (status.liveStreamAvailable) "STREAMING" else "WAITING",
+                color = if (status.liveStreamAvailable) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.outline,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        if (status.liveStreamAvailable && streamUrl.isNotBlank()) {
+            AndroidView(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .testTag("remote_live_preview"),
+                factory = { context ->
+                    WebView(context).apply {
+                        setBackgroundColor(android.graphics.Color.BLACK)
+                        webViewClient = WebViewClient()
+                        settings.loadWithOverviewMode = true
+                        settings.useWideViewPort = true
+                    }
+                },
+                update = { view ->
+                    if (view.tag != streamUrl) {
+                        view.tag = streamUrl
+                        view.loadUrl(streamUrl)
+                    }
+                },
+                onRelease = { view ->
+                    view.stopLoading()
+                    view.destroy()
+                },
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .background(Color(0xFF0A0E14))
+                    .testTag("remote_live_preview_placeholder"),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = if (status.recordingStatus == com.firmmy.dashcam.core.common.RecordingStatus.IDLE) {
+                        "Start recording to open live view"
+                    } else {
+                        "Live preview unavailable"
+                    },
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 

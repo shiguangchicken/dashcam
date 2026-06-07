@@ -28,6 +28,7 @@ dependencies {
     implementation(project(":core-database"))
     implementation(project(":core-media"))
     implementation(project(":core-network"))
+    implementation(project(":core-voice"))
     implementation(project(":feature-recorder"))
     implementation(project(":feature-remote"))
     implementation(project(":feature-settings"))

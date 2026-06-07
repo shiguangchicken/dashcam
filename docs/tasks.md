@@ -424,11 +424,11 @@ RECORDER_SERIAL=<serial-a> VIEWER_SERIAL=<serial-b> tools/two_device_smoke_test.
 
 ### Task 20：实现语音命令解析器
 
-- [ ] 在 `core-voice` 实现固定中文命令到 `DashCamCommand` 的映射。
-- [ ] 支持命令：拍照、打开录音、关闭录音、打开热点、关闭热点、停车模式、驾驶模式、保存这段、停止录像。
-- [ ] 支持常见同义词和前后空白/标点清理。
-- [ ] 对无法识别命令返回明确原因并记录日志。
-- [ ] 添加 `VoiceCommandParserTest`。
+- [x] 在 `core-voice` 实现固定中文命令到 `DashCamCommand` 的映射。
+- [x] 支持命令：拍照、打开录音、关闭录音、打开热点、关闭热点、停车模式、驾驶模式、保存这段、停止录像。
+- [x] 支持常见同义词和前后空白/标点清理。
+- [x] 对无法识别命令返回明确原因并记录日志。
+- [x] 添加 `VoiceCommandParserTest`。
 
 验收：
 
@@ -436,14 +436,18 @@ RECORDER_SERIAL=<serial-a> VIEWER_SERIAL=<serial-b> tools/two_device_smoke_test.
 ./gradlew :core-voice:testDebugUnitTest --tests '*VoiceCommandParser*'
 ```
 
+验证记录：
+
+- [x] 2026-06-07 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew :core-voice:testDebugUnitTest --tests '*VoiceCommandParser*'` 通过，覆盖 9 个必需中文命令、同义词、空输入和未知命令日志事件。
+
 ### Task 21：实现语音唤醒与短窗口命令识别服务
 
-- [ ] 在 `core-voice` 实现 `VoiceWakeService`。
-- [ ] 采用两段式流程：低功耗唤醒词检测，唤醒后 3-5 秒命令识别窗口。
-- [ ] 原型优先接入 Picovoice Porcupine/Rhino 或可替换接口；无法接入授权模型时提供 fake/local fallback 以保持可测试。
-- [ ] 语音命令统一分发为 `DashCamCommand`。
-- [ ] 记录识别成功、失败、超时、置信度等日志。
-- [ ] 设置页支持启用/关闭语音唤醒和配置唤醒词。
+- [x] 在 `core-voice` 实现 `VoiceWakeService`。
+- [x] 采用两段式流程：低功耗唤醒词检测，唤醒后 3-5 秒命令识别窗口。
+- [x] 原型优先接入 Picovoice Porcupine/Rhino 或可替换接口；无法接入授权模型时提供 fake/local fallback 以保持可测试。
+- [x] 语音命令统一分发为 `DashCamCommand`。
+- [x] 记录识别成功、失败、超时、置信度等日志。
+- [x] 设置页支持启用/关闭语音唤醒和配置唤醒词。
 
 验收：
 
@@ -454,13 +458,20 @@ RECORDER_SERIAL=<serial-a> VIEWER_SERIAL=<serial-b> tools/two_device_smoke_test.
 
 真机验收：语音“拍照”和“停车模式”能触发对应命令，错误识别有日志记录。
 
+验证记录：
+
+- [x] 2026-06-07 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew :core-voice:testDebugUnitTest` 通过，覆盖唤醒词进入命令窗口、识别分发、未知命令重试、命令窗口超时、暂停/恢复和低电量/过热/麦克风占用策略。
+- [x] 2026-06-07 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew assembleDebug` 通过。
+- [x] 2026-06-07 设置页已存在并保留 `settings_voice_wakeup_enabled`、`settings_wake_word_field`。
+- [x] 2026-06-07 当前阶段按 fake/local fallback 原型完成，未接入 Picovoice/Rhino 授权模型；真实麦克风语音“拍照”和“停车模式”未测试，原因是本次范围不包含授权离线语音 SDK 或系统语音识别接入。
+
 ### Task 22：语音服务与前台录制集成
 
-- [ ] 将语音服务命令接入 `RecorderForegroundService`。
-- [ ] 在记录仪首页显示语音监听状态。
-- [ ] 避免录制音频和语音识别的麦克风资源冲突，必要时按模式降级或提示用户。
-- [ ] 停车模式下优先低功耗监听，过热或低电量时自动暂停语音唤醒。
-- [ ] 添加集成测试或 fake service 测试。
+- [x] 将语音服务命令接入 `RecorderForegroundService`。
+- [x] 在记录仪首页显示语音监听状态。
+- [x] 避免录制音频和语音识别的麦克风资源冲突，必要时按模式降级或提示用户。
+- [x] 停车模式下优先低功耗监听，过热或低电量时自动暂停语音唤醒。
+- [x] 添加集成测试或 fake service 测试。
 
 验收：
 
@@ -469,6 +480,14 @@ RECORDER_SERIAL=<serial-a> VIEWER_SERIAL=<serial-b> tools/two_device_smoke_test.
 ```
 
 真机验收：录制中语音命令可执行，不导致录制崩溃。
+
+验证记录：
+
+- [x] 2026-06-07 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew testDebugUnitTest` 通过。
+- [x] 2026-06-07 使用 `ANDROID_HOME=/home/meng/Android/Sdk ANDROID_SDK_ROOT=/home/meng/Android/Sdk` 运行 `./gradlew ktlintCheck` 通过。
+- [x] 2026-06-07 SM_G7810 真机安装 `app/build/outputs/apk/debug/app-debug.apk` 成功；启动 `MainActivity` 后通过 `adb shell am start-foreground-service -n com.firmmy.dashcam/.RecorderForegroundService -a com.firmmy.dashcam.action.VOICE_COMMAND_TEXT --es com.firmmy.dashcam.extra.VOICE_COMMAND_TEXT '关闭录音'` 验证 fake/local 文本语音命令入口可进入 service，`pidof com.firmmy.dashcam` 仍返回进程号，未崩溃。
+- [x] 2026-06-07 Mi 10 当前 `adb devices -l` 显示 `unauthorized`，未执行 Mi 10 真机语音验收；如安装被系统阻止，需要在手机安装弹窗点击“继续安装”后重试。
+- [x] 2026-06-07 录制中真实麦克风语音命令未测试，原因同 Task 21：当前实现为 fake/local fallback，不包含真实 KWS/ASR 引擎；“保存这段”已解析为 `LockCurrentClip`，但 `SegmentRecordingController` 暂无锁定当前活动片段的执行 API，service 记录不支持日志。
 
 ## 阶段 5：稳定性、性能与自动化闭环
 

@@ -14,17 +14,22 @@ import androidx.core.content.ContextCompat
 import com.firmmy.dashcam.core.common.DashCamCommand
 import com.firmmy.dashcam.core.common.RecordingMode
 import com.firmmy.dashcam.core.common.RecordingStatus
+import com.firmmy.dashcam.core.database.DashCamSettings
 import com.firmmy.dashcam.core.network.AndroidLocalOnlyHotspotStarter
 import com.firmmy.dashcam.core.network.EmbeddedHttpServer
 import com.firmmy.dashcam.core.network.HotspotController
 import com.firmmy.dashcam.core.network.HotspotState
 import com.firmmy.dashcam.core.network.RemoteConnectionPayload
+import com.firmmy.dashcam.core.voice.VoiceListeningStatus
+import com.firmmy.dashcam.core.voice.VoiceRuntimeConditions
+import com.firmmy.dashcam.core.voice.VoiceSafetyPolicy
 import com.firmmy.dashcam.feature.recorder.RecorderScreen
 import com.firmmy.dashcam.feature.recorder.RecorderUiState
 
 @Composable
 fun CameraBackedRecorderScreen(
     context: Context,
+    settings: DashCamSettings,
     modifier: Modifier = Modifier,
     onHotspotCredentialsChanged: (ssid: String, password: String) -> Unit = { _, _ -> },
     onViewFilesClick: () -> Unit = {},
@@ -53,6 +58,30 @@ fun CameraBackedRecorderScreen(
     }
     val hotspotState by hotspotController.state.collectAsState()
     var addressesBeforeHotspot by remember { mutableStateOf(emptySet<String>()) }
+    val voiceStatus = remember(
+        settings.voiceWakeupEnabled,
+        state.audioEnabled,
+        state.batteryPercent,
+        state.temperatureCelsius,
+    ) {
+        val pauseReason = VoiceSafetyPolicy.pauseReasonFor(
+            VoiceRuntimeConditions(
+                voiceWakeupEnabled = settings.voiceWakeupEnabled,
+                audioRecordingActive = state.audioEnabled,
+                batteryPercent = state.batteryPercent,
+                temperatureCelsius = state.temperatureCelsius,
+            ),
+        )
+        when {
+            pauseReason == null -> VoiceListeningStatus.LISTENING.name
+            !settings.voiceWakeupEnabled -> "Off"
+            else -> "${VoiceListeningStatus.PAUSED.name}: ${pauseReason.name}"
+        }
+    }
+
+    LaunchedEffect(voiceStatus) {
+        state = state.copy(voiceStatus = voiceStatus)
+    }
 
     DisposableEffect(remoteServerController) {
         onDispose {

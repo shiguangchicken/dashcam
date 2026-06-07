@@ -17,6 +17,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import com.firmmy.dashcam.core.common.DashCamFormatters
+import com.firmmy.dashcam.core.common.DashCamCommand
 import com.firmmy.dashcam.core.common.DashCamResult
 import com.firmmy.dashcam.core.common.RecordingMode
 import com.firmmy.dashcam.core.common.RecordingStatus
@@ -31,6 +32,8 @@ import com.firmmy.dashcam.core.media.DashCamMediaDirectories
 import com.firmmy.dashcam.core.media.DashCamMediaRepository
 import com.firmmy.dashcam.core.media.RecordingProfiles
 import com.firmmy.dashcam.core.media.SegmentRecordingController
+import com.firmmy.dashcam.core.voice.VoiceCommandParseResult
+import com.firmmy.dashcam.core.voice.VoiceCommandParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -88,6 +91,8 @@ class RecorderForegroundService : Service(), LifecycleOwner {
             ACTION_SWITCH_PARKING -> startOrSwitch(RecordingMode.PARKING, intent)
             ACTION_ENABLE_AUDIO -> setAudioEnabled(true)
             ACTION_DISABLE_AUDIO -> setAudioEnabled(false)
+            ACTION_LOCK_CURRENT_CLIP -> Log.w(TAG, "Voice command LockCurrentClip is not supported by the recorder service yet")
+            ACTION_VOICE_COMMAND_TEXT -> handleVoiceCommandText(intent)
         }
         if ((action == ACTION_ENABLE_AUDIO || action == ACTION_DISABLE_AUDIO) &&
             currentStatus == RecordingStatus.IDLE
@@ -152,6 +157,24 @@ class RecorderForegroundService : Service(), LifecycleOwner {
         }
         stopForegroundCompat()
         stopSelf()
+    }
+
+    private suspend fun handleVoiceCommandText(intent: Intent?) {
+        val text = intent?.getStringExtra(EXTRA_VOICE_COMMAND_TEXT).orEmpty()
+        when (val parsed = VoiceCommandParser().parse(text)) {
+            is VoiceCommandParseResult.Recognized -> {
+                val action = actionForVoiceCommand(parsed.command)
+                if (action == null) {
+                    Log.w(TAG, "Voice command ${parsed.command} has no recorder service action")
+                    return
+                }
+                handleIntent(Intent(this, RecorderForegroundService::class.java).setAction(action))
+            }
+
+            is VoiceCommandParseResult.Unrecognized -> {
+                Log.w(TAG, "Voice command not recognized: ${parsed.reason}, input='${parsed.rawInput}'")
+            }
+        }
     }
 
     private fun dependencies(): RecorderServiceDependencies =
@@ -300,6 +323,8 @@ class RecorderForegroundService : Service(), LifecycleOwner {
         const val ACTION_SWITCH_PARKING = "com.firmmy.dashcam.action.SWITCH_PARKING"
         const val ACTION_ENABLE_AUDIO = "com.firmmy.dashcam.action.ENABLE_AUDIO"
         const val ACTION_DISABLE_AUDIO = "com.firmmy.dashcam.action.DISABLE_AUDIO"
+        const val ACTION_LOCK_CURRENT_CLIP = "com.firmmy.dashcam.action.LOCK_CURRENT_CLIP"
+        const val ACTION_VOICE_COMMAND_TEXT = "com.firmmy.dashcam.action.VOICE_COMMAND_TEXT"
         const val EXTRA_SEGMENT_DURATION_MINUTES = "com.firmmy.dashcam.extra.SEGMENT_DURATION_MINUTES"
 
         private const val CHANNEL_ID = "dashcam_recording"
@@ -308,6 +333,7 @@ class RecorderForegroundService : Service(), LifecycleOwner {
         private const val TAG = "RecorderForeground"
 
         private const val EXTRA_AUDIO_ENABLED = "com.firmmy.dashcam.extra.AUDIO_ENABLED"
+        private const val EXTRA_VOICE_COMMAND_TEXT = "com.firmmy.dashcam.extra.VOICE_COMMAND_TEXT"
 
         fun commandIntent(
             context: Context,
@@ -325,5 +351,27 @@ class RecorderForegroundService : Service(), LifecycleOwner {
                         intent.putExtra(EXTRA_SEGMENT_DURATION_MINUTES, segmentDurationMinutes)
                     }
                 }
+
+        fun actionForVoiceCommand(command: DashCamCommand): String? =
+            when (command) {
+                DashCamCommand.StartDrivingMode -> ACTION_SWITCH_DRIVING
+                DashCamCommand.StartParkingMode -> ACTION_SWITCH_PARKING
+                DashCamCommand.TakePhoto -> ACTION_TAKE_PHOTO
+                DashCamCommand.EnableAudio -> ACTION_ENABLE_AUDIO
+                DashCamCommand.DisableAudio -> ACTION_DISABLE_AUDIO
+                DashCamCommand.LockCurrentClip -> ACTION_LOCK_CURRENT_CLIP
+                DashCamCommand.StopRecording -> ACTION_STOP
+                DashCamCommand.StartHotspot,
+                DashCamCommand.StopHotspot,
+                -> null
+            }
+
+        fun voiceCommandIntent(
+            context: Context,
+            text: String,
+        ): Intent =
+            Intent(context, RecorderForegroundService::class.java)
+                .setAction(ACTION_VOICE_COMMAND_TEXT)
+                .putExtra(EXTRA_VOICE_COMMAND_TEXT, text)
     }
 }

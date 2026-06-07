@@ -220,6 +220,7 @@ private fun HomeScreen(
     if (role == DeviceRole.RECORDER && !showSettings) {
         CameraBackedRecorderScreen(
             context = context,
+            settings = settings,
             onHotspotCredentialsChanged = { ssid, password ->
                 val updatedSettings = settings.copy(
                     hotspotSsid = ssid,

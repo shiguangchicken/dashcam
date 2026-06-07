@@ -41,6 +41,7 @@ data class RecorderUiState(
     val remoteServerUrl: String = "",
     val remoteQrText: String = "",
     val hotspotError: String = "",
+    val voiceStatus: String = "Off",
     val photoCount: Int = 0,
 )
 
@@ -152,6 +153,11 @@ fun RecorderScreen(
             StatusRow("Temperature", "%.1f C".format(state.temperatureCelsius))
             StatusRow("Audio", if (state.audioEnabled) "On" else "Off")
             StatusRow("Hotspot", if (state.hotspotEnabled) "On" else "Off")
+            StatusRow(
+                label = "Voice",
+                value = state.voiceStatus,
+                modifier = Modifier.testTag("voice_status_text"),
+            )
             if (state.hotspotSsid.isNotBlank()) {
                 StatusRow(
                     label = "Hotspot SSID",

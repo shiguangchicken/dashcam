@@ -5,8 +5,10 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -21,9 +23,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.firmmy.dashcam.core.common.DeviceRole
 import com.firmmy.dashcam.core.common.MediaType
@@ -238,14 +243,30 @@ private fun HomeScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .background(Color(0xFF10141A))
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text(
-            text = "DashCam",
-            style = MaterialTheme.typography.headlineMedium,
-        )
-        Text("Current role: ${role.label}")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFF181C22))
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "DroidDash",
+                color = Color(0xFFFF6B00),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = if (role == DeviceRole.RECORDER) "GPS LOCKED" else role.label,
+                color = Color(0xFF98CBFF),
+                fontWeight = FontWeight.Bold,
+            )
+        }
         SettingsScreen(
             modifier = Modifier.weight(1f),
             settings = settings.copy(deviceRole = role),

@@ -1,0 +1,74 @@
+package com.firmmy.dashcam.feature.recorder
+
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
+import com.firmmy.dashcam.core.common.MediaType
+import com.firmmy.dashcam.core.common.RecordingMode
+import org.junit.Rule
+import org.junit.Test
+
+class RecorderScreenComposeTest {
+    @get:Rule
+    val composeRule = createComposeRule()
+
+    @Test
+    fun redesignedRecorderDashboardExposesPrimaryActions() {
+        composeRule.setContent {
+            MaterialTheme {
+                FakeRecorderScreen()
+            }
+        }
+
+        listOf(
+            "recorder_dashboard",
+            "recorder_start_button",
+            "take_photo_button",
+            "audio_toggle_button",
+            "hotspot_toggle_button",
+            "view_files_button",
+            "recorder_settings_button",
+            "recording_status_text",
+            "current_mode_text",
+        ).forEach { tag ->
+            composeRule.onNodeWithTag(tag).assertExists()
+        }
+    }
+
+    @Test
+    fun mediaBrowserOpensVideoPlayerFromSelectedItem() {
+        composeRule.setContent {
+            MaterialTheme {
+                MediaBrowserScreen(items = testMediaItems())
+            }
+        }
+
+        composeRule.onNodeWithTag("media_video_list").assertExists()
+        composeRule.onNodeWithTag("media_item_1").performClick()
+        composeRule.onNodeWithTag("media_video_player").assertExists()
+        composeRule.onNodeWithTag("media_delete_button").assertExists()
+        composeRule.onNodeWithTag("media_lock_button").assertExists()
+    }
+
+    private fun testMediaItems(): List<MediaBrowserItem> =
+        listOf(
+            MediaBrowserItem(
+                id = 1L,
+                type = MediaType.VIDEO,
+                mode = RecordingMode.DRIVING,
+                path = "/tmp/server_clip_1.mp4",
+                createdAt = 1_779_926_400_000L,
+                durationMs = 60_000L,
+                sizeBytes = 1024L,
+            ),
+            MediaBrowserItem(
+                id = 2L,
+                type = MediaType.PHOTO,
+                mode = RecordingMode.MANUAL,
+                path = "/tmp/server_photo_2.jpg",
+                createdAt = 1_779_926_500_000L,
+                sizeBytes = 512L,
+            ),
+        )
+}

@@ -7,13 +7,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -145,24 +148,25 @@ fun RecorderScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    listOf(Color(0xFF111820), Color(0xFF0B1117), Color(0xFF05080B)),
+                    listOf(Color(0xFF10141A), Color(0xFF0A0E14), Color(0xFF05080B)),
                 ),
-            ),
+            )
+            .testTag("recorder_dashboard"),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(24.dp),
+                .padding(horizontal = 20.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            TopBar(state)
-            StatusCards(state)
-            SpeedBlock(recording)
+            DroidDashTopBar(state)
+            RecorderTelemetryRow(state)
+            CameraPreviewHud(recording)
             RecordingTimer(state)
             VoiceHint(state.voiceStatus)
-            ControlCluster(
+            RecorderControls(
                 state = state,
                 recording = recording,
                 onStartStopClick = onStartStopClick,
@@ -171,11 +175,12 @@ fun RecorderScreen(
                 onHotspotToggleClick = onHotspotToggleClick,
                 onSettingsClick = onSettingsClick,
             )
-            ModeControls(
+            RecorderBottomNav(
                 state = state,
                 onDrivingModeClick = onDrivingModeClick,
                 onParkingModeClick = onParkingModeClick,
                 onViewFilesClick = onViewFilesClick,
+                onSettingsClick = onSettingsClick,
             )
             RemoteAccessPanel(state)
             Spacer(Modifier.height(12.dp))
@@ -205,59 +210,102 @@ fun FakeRecorderScreen(
 }
 
 @Composable
-private fun TopBar(state: RecorderUiState) {
-    Row(
+private fun DroidDashTopBar(state: RecorderUiState) {
+    GlassPanel(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
+        padding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
     ) {
-        Text(
-            text = "▣ DroidDash",
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold,
-            fontSize = 24.sp,
-        )
-        HudChip("42 C", MaterialTheme.colorScheme.secondary)
-        HudChip(if (state.batteryPercent > 20) "Charging" else "Battery low", MaterialTheme.colorScheme.tertiary)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("CAM", color = SafetyOrange, fontWeight = FontWeight.Bold)
+                Text(
+                    text = "DroidDash",
+                    color = SafetyOrange,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                HudChip("${state.temperatureCelsius.toInt()} C", CyberBlue)
+                HudChip(if (state.batteryPercent > 20) "Charging" else "Battery low", SignalGreen)
+            }
+        }
     }
 }
 
 @Composable
-private fun StatusCards(state: RecorderUiState) {
+private fun RecorderTelemetryRow(state: RecorderUiState) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         GlassPanel(modifier = Modifier.weight(1f)) {
-            Text("GPS SIGNAL", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
-            Text("LOCKED · 12 SAT", color = MaterialTheme.colorScheme.secondary, fontFamily = FontFamily.Monospace)
+            Text("GPS SIGNAL", color = MutedText, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Text("LOCKED / 12 SAT", color = CyberBlue, fontFamily = FontFamily.Monospace, fontSize = 14.sp)
         }
-        GlassPanel(modifier = Modifier.weight(1.35f)) {
-            Text("STORAGE", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+        GlassPanel(modifier = Modifier.weight(1.2f)) {
+            Text("STORAGE", color = MutedText, fontWeight = FontWeight.Bold, fontSize = 12.sp)
             Text(
                 DashCamFormatters.formatFileSize(state.remainingStorageBytes),
-                color = MaterialTheme.colorScheme.onSurface,
+                color = Foreground,
                 fontFamily = FontFamily.Monospace,
+                fontSize = 14.sp,
             )
         }
     }
 }
 
 @Composable
-private fun SpeedBlock(recording: Boolean) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun CameraPreviewHud(recording: Boolean) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(16f / 9f)
+            .clip(RoundedCornerShape(8.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(Color(0xFF172331), Color(0xFF0A0E14), Color(0xFF1E1510)),
+                ),
+            )
+            .border(1.dp, Color(0x1FFFFFFF), RoundedCornerShape(8.dp)),
+    ) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            MiniChip(if (recording) "REC ACTIVE" else "REC READY", if (recording) SafetyOrange else MutedText)
+            MiniChip("FRONT 4K / WIDE", CyberBlue)
+        }
+        Column(
+            modifier = Modifier.align(Alignment.Center),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = if (recording) "29" else "0",
+                color = Color.White,
+                fontSize = 88.sp,
+                fontWeight = FontWeight.Bold,
+                lineHeight = 88.sp,
+            )
+            Text("KM/H", color = MutedText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        }
         Text(
-            text = if (recording) "67" else "0",
-            color = Color.White,
-            fontSize = 92.sp,
-            fontWeight = FontWeight.Bold,
-            lineHeight = 92.sp,
-        )
-        Text(
-            text = "KM/H",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
+            text = "LANE / OBJECT / IMPACT MONITOR",
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(12.dp),
+            color = MutedText,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
         )
     }
 }
@@ -267,8 +315,9 @@ private fun RecordingTimer(state: RecorderUiState) {
     val active = state.recordingStatus != RecordingStatus.IDLE
     Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (active) Color(0xFF6E2630) else Color(0xFF252A31))
+            .clip(RoundedCornerShape(24.dp))
+            .background(if (active) Color(0x66300000) else SurfaceHigh)
+            .border(1.dp, if (active) SafetyOrange.copy(alpha = 0.35f) else Color(0x22FFFFFF), RoundedCornerShape(24.dp))
             .padding(horizontal = 22.dp, vertical = 10.dp)
             .testTag("recording_status_text"),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -278,7 +327,7 @@ private fun RecordingTimer(state: RecorderUiState) {
             modifier = Modifier
                 .size(11.dp)
                 .clip(CircleShape)
-                .background(if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.outline),
+                .background(if (active) SafetyOrange else MutedText),
         )
         Text(
             text = DashCamFormatters.formatDuration(state.currentSegmentMillis),
@@ -290,28 +339,31 @@ private fun RecordingTimer(state: RecorderUiState) {
     }
     Text(
         modifier = Modifier.testTag("current_mode_text"),
-        text = "${state.mode.label} · ${state.recordingStatus.label}",
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        text = "${state.mode.label} / ${state.recordingStatus.label}",
+        color = MutedText,
+        fontFamily = FontFamily.Monospace,
     )
 }
 
 @Composable
 private fun VoiceHint(voiceStatus: String) {
-    Text(
-        text = if (voiceStatus == "Off") "Say \"Take Photo\" to capture" else "Voice $voiceStatus",
+    GlassPanel(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color(0x77262A31))
-            .padding(12.dp)
             .testTag("voice_status_text"),
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        textAlign = TextAlign.Center,
-    )
+        padding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        Text(
+            text = if (voiceStatus == "Off") "Say \"Take Photo\" to capture" else "Voice $voiceStatus",
+            color = MutedText,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 @Composable
-private fun ControlCluster(
+private fun RecorderControls(
     state: RecorderUiState,
     recording: Boolean,
     onStartStopClick: () -> Unit,
@@ -322,64 +374,78 @@ private fun ControlCluster(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        SquareControl("CAM", "take_photo_button", onTakePhotoClick)
-        SquareControl(if (state.audioEnabled) "MIC" else "MUTE", "audio_toggle_button", onAudioToggleClick)
+        RoundControl("CAM", "take_photo_button", onTakePhotoClick)
+        RoundControl(if (state.audioEnabled) "MIC" else "MUTE", "audio_toggle_button", onAudioToggleClick)
         Button(
             modifier = Modifier
                 .size(96.dp)
                 .testTag("recorder_start_button"),
-            shape = RoundedCornerShape(18.dp),
+            shape = CircleShape,
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = Color(0xFF1D0900),
+                containerColor = SafetyOrange,
+                contentColor = Color(0xFF351000),
             ),
             onClick = onStartStopClick,
+            contentPadding = PaddingValues(0.dp),
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(if (recording) "■" else "●", fontSize = 22.sp)
-                Text(if (recording) "STOP" else "REC", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text(if (recording) "STOP" else "REC", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(if (recording) "ACTIVE" else "READY", fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
         }
-        SquareControl(if (state.hotspotEnabled) "LINK" else "WIFI", "hotspot_toggle_button", onHotspotToggleClick)
-        SquareControl("SET", "recorder_settings_button", onSettingsClick)
+        RoundControl(if (state.hotspotEnabled) "LINK" else "WIFI", "hotspot_toggle_button", onHotspotToggleClick)
+        RoundControl("SET", "recorder_settings_button", onSettingsClick)
     }
 }
 
 @Composable
-private fun ModeControls(
+private fun RecorderBottomNav(
     state: RecorderUiState,
     onDrivingModeClick: () -> Unit,
     onParkingModeClick: () -> Unit,
     onViewFilesClick: () -> Unit,
+    onSettingsClick: () -> Unit,
 ) {
-    Row(
+    GlassPanel(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        padding = PaddingValues(8.dp),
     ) {
-        ModeButton(
-            label = "Driving",
-            selected = state.mode == RecordingMode.DRIVING,
-            tag = "mode_driving_button",
-            onClick = onDrivingModeClick,
-            modifier = Modifier.weight(1f),
-        )
-        ModeButton(
-            label = "Parking",
-            selected = state.mode == RecordingMode.PARKING,
-            tag = "mode_parking_button",
-            onClick = onParkingModeClick,
-            modifier = Modifier.weight(1f),
-        )
-        ModeButton(
-            label = "Files",
-            selected = false,
-            tag = "view_files_button",
-            onClick = onViewFilesClick,
-            modifier = Modifier.weight(1f),
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            NavButton(
+                label = "Recorder",
+                selected = state.mode == RecordingMode.DRIVING,
+                tag = "mode_driving_button",
+                onClick = onDrivingModeClick,
+                modifier = Modifier.weight(1f),
+            )
+            NavButton(
+                label = "Parking",
+                selected = state.mode == RecordingMode.PARKING,
+                tag = "mode_parking_button",
+                onClick = onParkingModeClick,
+                modifier = Modifier.weight(1f),
+            )
+            NavButton(
+                label = "Media",
+                selected = false,
+                tag = "view_files_button",
+                onClick = onViewFilesClick,
+                modifier = Modifier.weight(1f),
+            )
+            NavButton(
+                label = "Settings",
+                selected = false,
+                tag = "dashboard_settings_nav_button",
+                onClick = onSettingsClick,
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
 
@@ -391,11 +457,19 @@ private fun RemoteAccessPanel(state: RecorderUiState) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Active Remote Viewers", fontWeight = FontWeight.Bold)
+            Column {
+                Text("Active Remote Viewers", color = Foreground, fontWeight = FontWeight.Bold)
+                Text(
+                    if (state.hotspotEnabled) "Hotspot ready for remote clients" else "Hotspot is off",
+                    color = MutedText,
+                    fontSize = 12.sp,
+                )
+            }
             Text(
                 if (state.hotspotEnabled) "READY" else "OFF",
-                color = if (state.hotspotEnabled) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.outline,
+                color = if (state.hotspotEnabled) SafetyOrange else MutedText,
                 fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
             )
         }
         if (state.hotspotSsid.isNotBlank()) {
@@ -417,7 +491,7 @@ private fun RemoteAccessPanel(state: RecorderUiState) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("Scan to connect", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Scan to connect", color = MutedText)
                 QrCodeImage(
                     text = state.remoteQrText,
                     modifier = Modifier.testTag("hotspot_qr_code"),
@@ -428,26 +502,27 @@ private fun RemoteAccessPanel(state: RecorderUiState) {
 }
 
 @Composable
-private fun SquareControl(
+private fun RoundControl(
     label: String,
     tag: String,
     onClick: () -> Unit,
 ) {
     OutlinedButton(
         modifier = Modifier
-            .size(56.dp)
+            .size(58.dp)
             .testTag(tag),
-        shape = RoundedCornerShape(8.dp),
+        shape = CircleShape,
         border = BorderStroke(1.dp, Color(0x33FFFFFF)),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = Foreground),
         onClick = onClick,
-        contentPadding = ButtonDefaults.ContentPadding,
+        contentPadding = PaddingValues(0.dp),
     ) {
         Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
-private fun ModeButton(
+private fun NavButton(
     label: String,
     selected: Boolean,
     tag: String,
@@ -457,12 +532,15 @@ private fun ModeButton(
     OutlinedButton(
         modifier = modifier.testTag(tag),
         onClick = onClick,
-        border = BorderStroke(
-            1.dp,
-            if (selected) MaterialTheme.colorScheme.primary else Color(0x33FFFFFF),
+        shape = RoundedCornerShape(24.dp),
+        border = BorderStroke(1.dp, if (selected) SafetyOrange else Color(0x22FFFFFF)),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = if (selected) SafetyOrange.copy(alpha = 0.18f) else Color.Transparent,
+            contentColor = if (selected) SafetyOrange else MutedText,
         ),
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
     ) {
-        Text(label)
+        Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -475,8 +553,8 @@ private fun HudChip(
         text = text,
         modifier = Modifier
             .clip(RoundedCornerShape(18.dp))
-            .background(Color(0x99262A31))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .background(SurfaceHigh)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
         color = color,
         fontSize = 12.sp,
         fontFamily = FontFamily.Monospace,
@@ -484,16 +562,36 @@ private fun HudChip(
 }
 
 @Composable
+private fun MiniChip(
+    text: String,
+    color: Color,
+) {
+    Text(
+        text = text,
+        modifier = Modifier
+            .clip(RoundedCornerShape(18.dp))
+            .background(Color(0x99000000))
+            .border(1.dp, color.copy(alpha = 0.35f), RoundedCornerShape(18.dp))
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+        color = color,
+        fontSize = 11.sp,
+        fontFamily = FontFamily.Monospace,
+        fontWeight = FontWeight.Bold,
+    )
+}
+
+@Composable
 private fun GlassPanel(
     modifier: Modifier = Modifier,
+    padding: PaddingValues = PaddingValues(14.dp),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(Color(0x66181C22))
+            .background(Color(0x77181C22))
             .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(8.dp))
-            .padding(16.dp),
+            .padding(padding),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         content = content,
     )
@@ -512,8 +610,15 @@ private fun StatusRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, color = MaterialTheme.colorScheme.onSurface, fontFamily = FontFamily.Monospace)
+        Text(label, color = MutedText, fontSize = 13.sp)
+        Spacer(Modifier.width(12.dp))
+        Text(
+            text = value,
+            color = Foreground,
+            fontFamily = FontFamily.Monospace,
+            fontSize = 13.sp,
+            textAlign = TextAlign.End,
+        )
     }
 }
 
@@ -523,3 +628,10 @@ private fun RecordingMode.toRecordingStatus(): RecordingStatus =
         RecordingMode.EVENT -> RecordingStatus.EVENT_BOOST_RECORDING
         else -> RecordingStatus.RECORDING_DRIVING
     }
+
+private val Foreground = Color(0xFFDFE2EB)
+private val MutedText = Color(0xFFE2BFB0)
+private val SurfaceHigh = Color(0xFF262A31)
+private val SafetyOrange = Color(0xFFFF6B00)
+private val CyberBlue = Color(0xFF98CBFF)
+private val SignalGreen = Color(0xFF4AE183)

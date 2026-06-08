@@ -78,6 +78,18 @@ class RecorderScreenTest {
         assertEquals(listOf(2L, 1L), filtered.map { it.id })
     }
 
+    @Test
+    fun mediaBrowserFiltersBySearchQuery() {
+        val filtered = filterMediaBrowserItems(
+            items = testMediaItems(),
+            type = MediaType.VIDEO,
+            query = "media_2",
+            zoneId = ZoneId.of("UTC"),
+        )
+
+        assertEquals(listOf(2L), filtered.map { it.id })
+    }
+
     private fun testMediaItems(): List<MediaBrowserItem> =
         listOf(
             mediaItem(

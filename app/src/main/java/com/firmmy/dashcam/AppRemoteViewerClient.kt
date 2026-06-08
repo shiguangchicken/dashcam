@@ -59,6 +59,12 @@ class AppRemoteViewerClient(
     override fun streamUrl(id: Long): String =
         requireClient().streamUrl(id)
 
+    override fun thumbnailUrl(id: Long): String =
+        requireClient().thumbnailUrl(id)
+
+    override fun downloadUrl(id: Long): String =
+        requireClient().downloadUrl(id)
+
     override fun liveStreamUrl(): String =
         requireClient().liveStreamUrl()
 

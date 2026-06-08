@@ -107,10 +107,11 @@ fun DashCamApp(
                 onRoleSelected(DeviceRole.REMOTE)
                 selectedRole = DeviceRole.REMOTE
                 settings = settings.copy(deviceRole = DeviceRole.REMOTE)
+                permissionsAcknowledged = true
             },
         )
 
-        !permissionsAcknowledged -> PermissionGuideScreen(
+        selectedRole == DeviceRole.RECORDER && !permissionsAcknowledged -> PermissionGuideScreen(
             role = selectedRole ?: DeviceRole.RECORDER,
             onContinue = {
                 onRequestPermissions()
@@ -200,7 +201,7 @@ private fun HomeScreen(
     settings: DashCamSettings,
     onSettingsSaved: (DashCamSettings) -> Unit,
 ) {
-    var showSettings by remember { mutableStateOf(role != DeviceRole.RECORDER) }
+    var showSettings by remember { mutableStateOf(false) }
     var showFiles by remember { mutableStateOf(false) }
     val context = LocalContext.current
 

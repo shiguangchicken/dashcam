@@ -44,6 +44,8 @@ class RemoteViewerScreenInstrumentedTest {
             client.connectedHosts.contains("192.168.62.74") && client.mediaCalls >= 2
         }
         composeRule.onNodeWithTag("remote_status_screen").assertExists()
+        composeRule.onNodeWithTag("remote_home_screen").assertExists()
+        composeRule.onNodeWithTag("remote_nav_media").performClick()
         composeRule.onNodeWithTag("remote_video_list").assertExists()
     }
 
@@ -99,6 +101,7 @@ class RemoteViewerScreenInstrumentedTest {
                 ),
                 videos = listOf(media(1L, MediaType.VIDEO)),
                 photos = listOf(media(2L, MediaType.PHOTO)),
+                destination = RemoteDestination.Settings,
                 settings = settings(wakeWord = "old"),
             ),
         )
@@ -115,8 +118,12 @@ class RemoteViewerScreenInstrumentedTest {
             }
         }
 
-        composeRule.onNodeWithText("Photos").performClick()
+        state = state.copy(destination = RemoteDestination.Media)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("PHOTOS (1)").performClick()
         composeRule.onNodeWithTag("remote_photo_list").assertExists()
+        state = state.copy(destination = RemoteDestination.Settings)
+        composeRule.waitForIdle()
         composeRule.onNodeWithTag("remote_wake_word_field").performScrollTo()
         composeRule.onNodeWithTag("remote_wake_word_field").performTextClearance()
         composeRule.onNodeWithTag("remote_wake_word_field").performTextInput("new wake")
@@ -170,6 +177,10 @@ class RemoteViewerScreenInstrumentedTest {
 
         override fun streamUrl(id: Long): String = "http://127.0.0.1:8080/api/media/$id/stream"
 
+        override fun thumbnailUrl(id: Long): String = "http://127.0.0.1:8080/api/media/$id/thumbnail"
+
+        override fun downloadUrl(id: Long): String = "http://127.0.0.1:8080/api/media/$id/download"
+
         override fun liveStreamUrl(): String = "http://127.0.0.1:8080/api/live.mjpeg"
     }
 
@@ -184,6 +195,7 @@ class RemoteViewerScreenInstrumentedTest {
                 mode = RecordingMode.DRIVING,
                 path = "/remote/$id",
                 createdAt = 1_780_012_800_000L,
+                durationMs = 322_000L,
                 sizeBytes = 1024L,
             )
 

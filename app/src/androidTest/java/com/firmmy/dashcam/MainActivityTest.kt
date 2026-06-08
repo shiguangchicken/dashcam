@@ -29,6 +29,14 @@ class MainActivityTest {
         composeRule.onNodeWithTag("permission_continue_button").assertIsDisplayed()
     }
 
+    @Test
+    fun selectingRemoteShowsConnectionScreen() {
+        setDashCamContent()
+
+        composeRule.onNodeWithTag("role_remote_button").performClick()
+        composeRule.onNodeWithTag("remote_scan_qr_button").assertIsDisplayed()
+    }
+
     private fun setDashCamContent() {
         composeRule.setContent {
             DashCamTheme {

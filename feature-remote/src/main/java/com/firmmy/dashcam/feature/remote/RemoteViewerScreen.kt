@@ -1,31 +1,40 @@
 package com.firmmy.dashcam.feature.remote
 
-import android.widget.MediaController
-import android.widget.VideoView
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.MediaController
+import android.widget.VideoView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -36,17 +45,21 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.firmmy.dashcam.core.common.DashCamCommand
 import com.firmmy.dashcam.core.common.DashCamFormatters
 import com.firmmy.dashcam.core.common.MediaType
 import com.firmmy.dashcam.core.common.RecordingMode
+import com.firmmy.dashcam.core.common.RecordingStatus
 import com.firmmy.dashcam.core.network.RemoteMediaItem
 import com.firmmy.dashcam.core.network.RemoteSettings
 import com.firmmy.dashcam.core.network.RemoteStatus
@@ -72,6 +85,10 @@ interface RemoteViewerClient {
 
     fun streamUrl(id: Long): String
 
+    fun thumbnailUrl(id: Long): String
+
+    fun downloadUrl(id: Long): String
+
     fun liveStreamUrl(): String
 }
 
@@ -83,11 +100,23 @@ data class RemoteViewerUiState(
     val videos: List<RemoteMediaItem> = emptyList(),
     val photos: List<RemoteMediaItem> = emptyList(),
     val selectedType: MediaType = MediaType.VIDEO,
+    val selectedMode: RecordingMode? = null,
+    val searchQuery: String = "",
     val selectedItem: RemoteMediaItem? = null,
+    val destination: RemoteDestination = RemoteDestination.Live,
     val message: String = "",
     val settings: RemoteSettings? = null,
 ) {
     companion object
+}
+
+enum class RemoteDestination(
+    val label: String,
+) {
+    Live("Live"),
+    Media("Media"),
+    Events("Events"),
+    Settings("Settings"),
 }
 
 @Composable
@@ -119,6 +148,20 @@ fun RemoteViewerScreen(
         }
     }
 
+    fun connect(host: String) {
+        scope.launch {
+            state = state.copy(connecting = true, message = "")
+            val connected = runCatching { client.connect(host) }.getOrDefault(false)
+            state = state.copy(
+                connected = connected,
+                connecting = false,
+                manualHost = host,
+                message = if (connected) "" else "Connection failed",
+            )
+            if (connected) refresh()
+        }
+    }
+
     LaunchedEffect(state.connected) {
         if (state.connected) refresh()
     }
@@ -126,21 +169,14 @@ fun RemoteViewerScreen(
     LaunchedEffect(autoConnect, initialManualHost) {
         if (!autoConnect || autoConnectAttempted || initialManualHost.isBlank()) return@LaunchedEffect
         autoConnectAttempted = true
-        state = state.copy(manualHost = initialManualHost, connecting = true, message = "")
-        val connected = runCatching { client.connect(initialManualHost) }.getOrDefault(false)
-        state = state.copy(
-            connected = connected,
-            connecting = false,
-            message = if (connected) "" else "Connection failed",
-        )
-        if (connected) refresh()
+        connect(initialManualHost)
     }
 
-    val selectedItem = state.selectedItem
-    if (selectedItem != null) {
+    state.selectedItem?.let { selectedItem ->
         RemoteViewerDetailContent(
             item = selectedItem,
             streamUrl = client.streamUrl(selectedItem.id),
+            downloadUrl = client.downloadUrl(selectedItem.id),
             onBackClick = { state = state.copy(selectedItem = null) },
             onDeleteClick = {
                 scope.launch {
@@ -161,18 +197,7 @@ fun RemoteViewerScreen(
         state = state,
         modifier = modifier,
         onHostChanged = { state = state.copy(manualHost = it) },
-        onConnectClick = {
-            scope.launch {
-                state = state.copy(connecting = true, message = "")
-                val connected = runCatching { client.connect(state.manualHost) }.getOrDefault(false)
-                state = state.copy(
-                    connected = connected,
-                    connecting = false,
-                    message = if (connected) "" else "Connection failed",
-                )
-                if (connected) refresh()
-            }
-        },
+        onConnectClick = { connect(state.manualHost) },
         onRefreshClick = ::refresh,
         onCommand = { command ->
             scope.launch {
@@ -182,16 +207,20 @@ fun RemoteViewerScreen(
             }
         },
         onTypeSelected = { state = state.copy(selectedType = it) },
+        onModeSelected = { state = state.copy(selectedMode = it) },
+        onSearchChanged = { state = state.copy(searchQuery = it) },
+        onDestinationSelected = { state = state.copy(destination = it) },
         onItemSelected = { state = state.copy(selectedItem = it) },
         onSettingsChanged = { state = state.copy(settings = it) },
         onSaveSettingsClick = {
             scope.launch {
                 val settings = state.settings ?: return@launch
                 val ok = client.saveSettings(settings)
-                state = state.copy(message = if (ok) "" else "Settings save failed")
+                state = state.copy(message = if (ok) "Settings saved" else "Settings save failed")
             }
         },
         liveStreamUrl = { client.liveStreamUrl() },
+        thumbnailUrl = { client.thumbnailUrl(it) },
     )
 }
 
@@ -204,73 +233,112 @@ fun RemoteViewerContent(
     onRefreshClick: () -> Unit = {},
     onCommand: (DashCamCommand) -> Unit = {},
     onTypeSelected: (MediaType) -> Unit = {},
+    onModeSelected: (RecordingMode?) -> Unit = {},
+    onSearchChanged: (String) -> Unit = {},
+    onDestinationSelected: (RemoteDestination) -> Unit = {},
     onItemSelected: (RemoteMediaItem) -> Unit = {},
     onSettingsChanged: (RemoteSettings) -> Unit = {},
     onSaveSettingsClick: () -> Unit = {},
     liveStreamUrl: () -> String = { "" },
+    thumbnailUrl: (Long) -> String = { "" },
 ) {
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+            .background(Color(0xFF10141A)),
     ) {
-        Text("Remote", style = MaterialTheme.typography.headlineMedium)
-
-        RemoteConnectPanel(
-            manualHost = state.manualHost,
-            connecting = state.connecting,
-            connected = state.connected,
-            message = state.message,
-            onHostChanged = onHostChanged,
-            onConnectClick = onConnectClick,
-        )
-
-        if (state.connected) {
-            RemoteStatusPanel(
-                status = state.status,
-                onRefreshClick = onRefreshClick,
-            )
-            RemoteLivePreviewPanel(
-                status = state.status,
-                streamUrl = liveStreamUrl(),
-            )
-            RemoteControlPanel(
-                audioEnabled = state.status.audioEnabled,
-                onCommand = onCommand,
-            )
-            RemoteMediaPanel(
+        if (!state.connected) {
+            RemoteManualConnectScreen(
                 state = state,
-                onTypeSelected = onTypeSelected,
-                onItemSelected = onItemSelected,
+                onHostChanged = onHostChanged,
+                onConnectClick = onConnectClick,
             )
-            RemoteSettingsPanel(
-                settings = state.settings,
-                onSettingsChanged = onSettingsChanged,
-                onSaveClick = onSaveSettingsClick,
+            return@Box
+        }
+
+        Column(modifier = Modifier.fillMaxSize()) {
+            RemoteTopBar(
+                status = state.status,
+                modifier = Modifier.testTag("remote_status_screen"),
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+            ) {
+                when (state.destination) {
+                    RemoteDestination.Live -> RemoteHomeScreen(
+                        state = state,
+                        onRefreshClick = onRefreshClick,
+                        onCommand = onCommand,
+                        liveStreamUrl = liveStreamUrl(),
+                    )
+
+                    RemoteDestination.Media -> RemoteMediaBrowserScreen(
+                        state = state,
+                        eventsOnly = false,
+                        onTypeSelected = onTypeSelected,
+                        onModeSelected = onModeSelected,
+                        onSearchChanged = onSearchChanged,
+                        onItemSelected = onItemSelected,
+                        thumbnailUrl = thumbnailUrl,
+                    )
+
+                    RemoteDestination.Events -> RemoteMediaBrowserScreen(
+                        state = state.copy(selectedType = MediaType.VIDEO),
+                        eventsOnly = true,
+                        onTypeSelected = onTypeSelected,
+                        onModeSelected = onModeSelected,
+                        onSearchChanged = onSearchChanged,
+                        onItemSelected = onItemSelected,
+                        thumbnailUrl = thumbnailUrl,
+                    )
+
+                    RemoteDestination.Settings -> RemoteSettingsScreen(
+                        status = state.status,
+                        settings = state.settings,
+                        message = state.message,
+                        onSettingsChanged = onSettingsChanged,
+                        onSaveClick = onSaveSettingsClick,
+                    )
+                }
+            }
+            RemoteBottomNav(
+                selected = state.destination,
+                onDestinationSelected = onDestinationSelected,
             )
         }
     }
 }
 
 @Composable
-private fun RemoteConnectPanel(
-    manualHost: String,
-    connecting: Boolean,
-    connected: Boolean,
-    message: String,
+private fun RemoteManualConnectScreen(
+    state: RemoteViewerUiState,
     onHostChanged: (String) -> Unit,
     onConnectClick: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        BrandHeader(trailing = "GPS: OK")
+        ConnectionIllustration()
+        Text(
+            text = "Manual connection",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold,
+        )
         OutlinedTextField(
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("remote_manual_ip_field"),
-            value = manualHost,
+            value = state.manualHost,
             onValueChange = onHostChanged,
-            label = { Text("Manual IP") },
+            label = { Text("Recorder server") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
             singleLine = true,
         )
@@ -278,21 +346,16 @@ private fun RemoteConnectPanel(
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("remote_connect_button"),
+            enabled = !state.connecting,
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
             onClick = onConnectClick,
-            enabled = !connecting,
         ) {
-            Text(
-                when {
-                    connecting -> "Connecting"
-                    connected -> "Reconnect"
-                    else -> "Connect"
-                },
-            )
+            Text(if (state.connecting) "CONNECTING" else "CONNECT")
         }
-        if (message.isNotBlank()) {
+        if (state.message.isNotBlank()) {
             Text(
                 modifier = Modifier.testTag("remote_message_text"),
-                text = message,
+                text = state.message,
                 color = MaterialTheme.colorScheme.error,
             )
         }
@@ -300,48 +363,95 @@ private fun RemoteConnectPanel(
 }
 
 @Composable
-private fun RemoteStatusPanel(
+private fun RemoteTopBar(
     status: RemoteStatus,
-    onRefreshClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = Modifier.testTag("remote_status_screen"),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .background(Color(0xEE10141A))
+            .border(1.dp, Color(0x1AFFFFFF))
+            .padding(horizontal = 24.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("Recorder status", style = MaterialTheme.typography.titleMedium)
-            OutlinedButton(
-                modifier = Modifier.testTag("remote_refresh_button"),
-                onClick = onRefreshClick,
-            ) {
-                Text("Refresh")
-            }
+        Text(
+            text = "DroidDash",
+            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = status.temperatureCelsius?.let { "%.0f C".format(it) } ?: "-- C",
+                color = MaterialTheme.colorScheme.onSurface,
+                fontFamily = FontFamily.Monospace,
+            )
+            Text(
+                text = if (status.hotspotEnabled) "ONLINE" else "LOCAL",
+                color = if (status.hotspotEnabled) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.secondary,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+            )
         }
-        RemoteStatusRow("Mode", status.mode.label)
-        RemoteStatusRow("Status", status.recordingStatus.label)
-        RemoteStatusRow("Space", DashCamFormatters.formatFileSize(status.freeSpaceBytes))
-        RemoteStatusRow("Audio", if (status.audioEnabled) "On" else "Off")
-        RemoteStatusRow("Hotspot", if (status.hotspotEnabled) status.hotspotSsid.ifBlank { "On" } else "Off")
-        RemoteStatusRow("Battery", status.batteryPercent?.let { "$it%" } ?: "--")
-        RemoteStatusRow("Temperature", status.temperatureCelsius?.let { "%.1f C".format(it) } ?: "--")
     }
 }
 
 @Composable
-private fun RemoteStatusRow(
-    label: String,
-    value: String,
+private fun RemoteHomeScreen(
+    state: RemoteViewerUiState,
+    onRefreshClick: () -> Unit,
+    onCommand: (DashCamCommand) -> Unit,
+    liveStreamUrl: String,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .testTag("remote_home_screen")
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        Text(label)
-        Text(value)
+        RemoteLivePreviewPanel(
+            status = state.status,
+            streamUrl = liveStreamUrl,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            TelemetryCard(
+                label = "GPS SIGNAL",
+                value = "LOCKED",
+                detail = "12 SAT",
+                modifier = Modifier.weight(1f),
+            )
+            StorageCard(
+                freeSpaceBytes = state.status.freeSpaceBytes,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = if (state.status.recordingStatus == RecordingStatus.IDLE) "0" else "59",
+                style = MaterialTheme.typography.displayLarge,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+            )
+            Text("KM/H", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+            StatusPill(state.status.recordingStatus.label.uppercase())
+        }
+        RemoteControlPanel(
+            audioEnabled = state.status.audioEnabled,
+            onCommand = onCommand,
+        )
+        ConnectedPanel(
+            status = state.status,
+            onRefreshClick = onRefreshClick,
+        )
+        if (state.message.isNotBlank()) {
+            Text(state.message, color = MaterialTheme.colorScheme.error)
+        }
     }
 }
 
@@ -350,25 +460,19 @@ private fun RemoteLivePreviewPanel(
     status: RemoteStatus,
     streamUrl: String,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("Live view", style = MaterialTheme.typography.titleMedium)
-            Text(
-                if (status.liveStreamAvailable) "STREAMING" else "WAITING",
-                color = if (status.liveStreamAvailable) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.outline,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-            )
-        }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(16f / 9f)
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xFF0A0E14))
+            .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(8.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
         if (status.liveStreamAvailable && streamUrl.isNotBlank()) {
             AndroidView(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
+                    .fillMaxSize()
                     .testTag("remote_live_preview"),
                 factory = { context ->
                     WebView(context).apply {
@@ -390,20 +494,11 @@ private fun RemoteLivePreviewPanel(
                 },
             )
         } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .background(Color(0xFF0A0E14))
-                    .testTag("remote_live_preview_placeholder"),
-                contentAlignment = Alignment.Center,
-            ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("LIVE PREVIEW", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 Text(
-                    text = if (status.recordingStatus == com.firmmy.dashcam.core.common.RecordingStatus.IDLE) {
-                        "Start recording to open live view"
-                    } else {
-                        "Live preview unavailable"
-                    },
+                    modifier = Modifier.testTag("remote_live_preview_placeholder"),
+                    text = if (status.recordingStatus == RecordingStatus.IDLE) "Start recording to open live view" else "Waiting for stream",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -412,124 +507,318 @@ private fun RemoteLivePreviewPanel(
 }
 
 @Composable
+private fun TelemetryCard(
+    label: String,
+    value: String,
+    detail: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0x77181C22))
+            .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(8.dp))
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, color = MaterialTheme.colorScheme.secondary, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+        Text(detail, color = MaterialTheme.colorScheme.secondary, fontFamily = FontFamily.Monospace)
+    }
+}
+
+@Composable
+private fun StorageCard(
+    freeSpaceBytes: Long,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0x77181C22))
+            .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(8.dp))
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("STORAGE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(DashCamFormatters.formatFileSize(freeSpaceBytes), color = MaterialTheme.colorScheme.onSurface, fontFamily = FontFamily.Monospace)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(5.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(Color(0x22FFFFFF)),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.62f)
+                    .height(5.dp)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatusPill(text: String) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(24.dp))
+            .background(Color(0x6693000A))
+            .border(1.dp, Color(0x33FFB4AB), RoundedCornerShape(24.dp))
+            .padding(horizontal = 18.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer),
+        )
+        Text(text, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurface)
+    }
+}
+
+@Composable
 private fun RemoteControlPanel(
     audioEnabled: Boolean,
     onCommand: (DashCamCommand) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("remote_take_photo_button"),
-                onClick = { onCommand(DashCamCommand.TakePhoto) },
-            ) {
-                Text("Photo")
+    Column(
+        modifier = Modifier.testTag("remote_control_panel"),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            CommandButton("PHOTO", "remote_take_photo_button", Modifier.weight(1f)) {
+                onCommand(DashCamCommand.TakePhoto)
             }
-            OutlinedButton(
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("remote_audio_toggle_button"),
-                onClick = {
-                    onCommand(
-                        if (audioEnabled) DashCamCommand.DisableAudio else DashCamCommand.EnableAudio,
-                    )
-                },
-            ) {
-                Text(if (audioEnabled) "Mute" else "Audio")
+            CommandButton(if (audioEnabled) "MUTE" else "AUDIO", "remote_audio_toggle_button", Modifier.weight(1f)) {
+                onCommand(if (audioEnabled) DashCamCommand.DisableAudio else DashCamCommand.EnableAudio)
+            }
+            CommandButton("LOCK", "remote_lock_clip_button", Modifier.weight(1f)) {
+                onCommand(DashCamCommand.LockCurrentClip)
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("remote_mode_driving_button"),
-                onClick = { onCommand(DashCamCommand.StartDrivingMode) },
-            ) {
-                Text("Driving")
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            CommandButton("DRIVING", "remote_mode_driving_button", Modifier.weight(1f)) {
+                onCommand(DashCamCommand.StartDrivingMode)
             }
-            OutlinedButton(
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("remote_mode_parking_button"),
-                onClick = { onCommand(DashCamCommand.StartParkingMode) },
-            ) {
-                Text("Parking")
+            CommandButton("PARKING", "remote_mode_parking_button", Modifier.weight(1f)) {
+                onCommand(DashCamCommand.StartParkingMode)
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("remote_hotspot_on_button"),
-                onClick = { onCommand(DashCamCommand.StartHotspot) },
-            ) {
-                Text("Hotspot on")
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            CommandButton("HOTSPOT ON", "remote_hotspot_on_button", Modifier.weight(1f)) {
+                onCommand(DashCamCommand.StartHotspot)
             }
-            OutlinedButton(
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("remote_hotspot_off_button"),
-                onClick = { onCommand(DashCamCommand.StopHotspot) },
-            ) {
-                Text("Hotspot off")
+            CommandButton("HOTSPOT OFF", "remote_hotspot_off_button", Modifier.weight(1f)) {
+                onCommand(DashCamCommand.StopHotspot)
             }
         }
     }
 }
 
 @Composable
-private fun RemoteMediaPanel(
+private fun CommandButton(
+    label: String,
+    tag: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    OutlinedButton(
+        modifier = modifier.testTag(tag),
+        onClick = onClick,
+    ) {
+        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun ConnectedPanel(
+    status: RemoteStatus,
+    onRefreshClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0x99181C22))
+            .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(8.dp))
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("ACTIVE REMOTE VIEWERS", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+            OutlinedButton(
+                modifier = Modifier.testTag("remote_refresh_button"),
+                onClick = onRefreshClick,
+            ) {
+                Text("REFRESH")
+            }
+        }
+        RemoteStatusRow("Mode", status.mode.label)
+        RemoteStatusRow("Audio", if (status.audioEnabled) "On" else "Off")
+        RemoteStatusRow("Hotspot", if (status.hotspotEnabled) status.hotspotSsid.ifBlank { "On" } else "Off")
+        RemoteStatusRow("Battery", status.batteryPercent?.let { "$it%" } ?: "--")
+    }
+}
+
+@Composable
+private fun RemoteStatusRow(
+    label: String,
+    value: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, color = MaterialTheme.colorScheme.onSurface, fontFamily = FontFamily.Monospace)
+    }
+}
+
+@Composable
+private fun RemoteMediaBrowserScreen(
     state: RemoteViewerUiState,
+    eventsOnly: Boolean,
     onTypeSelected: (MediaType) -> Unit,
+    onModeSelected: (RecordingMode?) -> Unit,
+    onSearchChanged: (String) -> Unit,
     onItemSelected: (RemoteMediaItem) -> Unit,
+    thumbnailUrl: (Long) -> String,
 ) {
     val items = remoteMediaForSelectedType(state)
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        TabRow(selectedTabIndex = if (state.selectedType == MediaType.VIDEO) 0 else 1) {
-            Tab(
-                selected = state.selectedType == MediaType.VIDEO,
-                onClick = { onTypeSelected(MediaType.VIDEO) },
-                text = { Text("Videos") },
-            )
-            Tab(
-                selected = state.selectedType == MediaType.PHOTO,
-                onClick = { onTypeSelected(MediaType.PHOTO) },
-                text = { Text("Photos") },
-            )
+        .filter { !eventsOnly || it.locked || it.mode == RecordingMode.EVENT }
+        .filter { state.selectedMode == null || it.mode == state.selectedMode }
+        .filter {
+            state.searchQuery.isBlank() ||
+                it.path.substringAfterLast('/').contains(state.searchQuery, ignoreCase = true) ||
+                it.mode.label.contains(state.searchQuery, ignoreCase = true)
         }
-        Row(
+        .sortedByDescending { it.createdAt }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        RemoteMediaHeader(state)
+        OutlinedTextField(
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .testTag("remote_media_filter_mode"),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            listOf(null, RecordingMode.DRIVING, RecordingMode.PARKING, RecordingMode.EVENT, RecordingMode.MANUAL)
-                .forEach { mode ->
-                    FilterChip(
-                        selected = false,
-                        onClick = {},
-                        label = { Text(mode?.label ?: "All") },
-                    )
-                }
+                .testTag("remote_media_search_field"),
+            value = state.searchQuery,
+            onValueChange = onSearchChanged,
+            label = { Text("Search filename or event type") },
+            singleLine = true,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = state.selectedMode == null,
+                onClick = { onModeSelected(null) },
+                label = { Text("All") },
+            )
+            listOf(RecordingMode.DRIVING, RecordingMode.PARKING, RecordingMode.EVENT, RecordingMode.MANUAL).forEach { mode ->
+                FilterChip(
+                    selected = state.selectedMode == mode,
+                    onClick = { onModeSelected(mode) },
+                    label = { Text(mode.label) },
+                )
+            }
         }
-        Column(
+        if (!eventsOnly) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                MediaTabButton(
+                    label = "VIDEOS (${state.videos.size})",
+                    selected = state.selectedType == MediaType.VIDEO,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onTypeSelected(MediaType.VIDEO) },
+                )
+                MediaTabButton(
+                    label = "PHOTOS (${state.photos.size})",
+                    selected = state.selectedType == MediaType.PHOTO,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onTypeSelected(MediaType.PHOTO) },
+                )
+            }
+        }
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(160.dp),
             modifier = Modifier
-                .fillMaxWidth()
+                .height((220 * ((items.size + 1) / 2).coerceAtLeast(1)).dp)
                 .testTag(if (state.selectedType == MediaType.VIDEO) "remote_video_list" else "remote_photo_list"),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            items.forEach { item ->
-                RemoteMediaRow(item = item, onClick = { onItemSelected(item) })
+            items(items, key = { it.id }) { item ->
+                RemoteMediaCard(
+                    item = item,
+                    thumbnailUrl = thumbnailUrl(item.id),
+                    onClick = { onItemSelected(item) },
+                )
             }
         }
     }
 }
 
 @Composable
-private fun RemoteMediaRow(
+private fun RemoteMediaHeader(state: RemoteViewerUiState) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xFF1C2026))
+            .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(8.dp))
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text("LIVE CONNECTION", color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+        Text("Connected to DroidDash V1", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("Active hotspot: ${state.status.hotspotSsid.ifBlank { "DroidDash" }}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer), onClick = {}) {
+                Text("BULK DOWNLOAD")
+            }
+            OutlinedButton(onClick = {}) {
+                Text("DELETE")
+            }
+        }
+    }
+}
+
+@Composable
+private fun MediaTabButton(
+    label: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Text(
+        modifier = modifier
+            .clip(RoundedCornerShape(4.dp))
+            .clickable(onClick = onClick)
+            .background(if (selected) Color(0x22FF6B00) else Color.Transparent)
+            .padding(vertical = 12.dp),
+        text = label,
+        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        fontWeight = FontWeight.Bold,
+    )
+}
+
+@Composable
+private fun RemoteMediaCard(
     item: RemoteMediaItem,
+    thumbnailUrl: String,
     onClick: () -> Unit,
 ) {
     Card(
@@ -537,20 +826,69 @@ private fun RemoteMediaRow(
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .testTag("remote_media_item_${item.id}"),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1C2026)),
+        shape = RoundedCornerShape(8.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+                .background(
+                    Brush.linearGradient(
+                        listOf(Color(0xFF31353C), Color(0xFF0A0E14)),
+                    ),
+                ),
+            contentAlignment = Alignment.Center,
         ) {
-            Text(DashCamFormatters.formatTimestamp(item.createdAt), style = MaterialTheme.typography.titleMedium)
-            Text("${item.mode.label} · ${DashCamFormatters.formatFileSize(item.sizeBytes)}")
             Text(
-                listOfNotNull(
-                    item.durationMs?.let(DashCamFormatters::formatDuration),
-                    if (item.locked) "Locked" else null,
-                ).joinToString(" · ").ifBlank { item.type.storedValue },
+                text = if (item.type == MediaType.VIDEO) "VIDEO" else "PHOTO",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontFamily = FontFamily.Monospace,
             )
+            item.durationMs?.let { durationMs ->
+                Text(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color(0x99000000))
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    text = DashCamFormatters.formatDuration(durationMs),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
+            if (item.locked || item.mode == RecordingMode.EVENT) {
+                Text(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(MaterialTheme.colorScheme.error)
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    text = if (item.locked) "INCIDENT" else item.mode.label.uppercase(),
+                    color = MaterialTheme.colorScheme.onError,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         }
+        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = item.path.substringAfterLast('/').ifBlank { "REMOTE_${item.id}" },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontFamily = FontFamily.Monospace,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(remoteDateKey(item.createdAt), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                Text(DashCamFormatters.formatFileSize(item.sizeBytes), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+            }
+        }
+        Spacer(modifier = Modifier.height(if (thumbnailUrl.isBlank()) 0.dp else 0.dp))
     }
 }
 
@@ -561,92 +899,405 @@ fun RemoteViewerDetailContent(
     onBackClick: () -> Unit,
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
+    downloadUrl: String = streamUrl,
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .verticalScroll(rememberScrollState())
+            .background(Color(0xFF10141A))
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedButton(onClick = onBackClick) {
-                Text("Back")
+            Text(
+                modifier = Modifier.clickable(onClick = onBackClick),
+                text = "BACK",
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+            )
+            Text("DroidDash", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color.Black)
+                .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(8.dp)),
+        ) {
+            if (item.type == MediaType.VIDEO) {
+                AndroidView(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag("remote_video_player"),
+                    factory = { context ->
+                        VideoView(context).apply {
+                            val controller = MediaController(context)
+                            controller.setAnchorView(this)
+                            setMediaController(controller)
+                            setOnErrorListener { _, _, _ -> true }
+                        }
+                    },
+                    update = { view ->
+                        if (view.tag != streamUrl) {
+                            view.stopPlayback()
+                            view.tag = streamUrl
+                            view.setVideoPath(streamUrl)
+                        }
+                    },
+                    onRelease = { view ->
+                        view.stopPlayback()
+                        view.setMediaController(null)
+                    },
+                )
+            } else {
+                AndroidView(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag("remote_photo_view"),
+                    factory = { context ->
+                        WebView(context).apply {
+                            setBackgroundColor(android.graphics.Color.BLACK)
+                            webViewClient = WebViewClient()
+                            settings.loadWithOverviewMode = true
+                            settings.useWideViewPort = true
+                        }
+                    },
+                    update = { view ->
+                        if (view.tag != streamUrl) {
+                            view.tag = streamUrl
+                            view.loadUrl(streamUrl)
+                        }
+                    },
+                    onRelease = { view ->
+                        view.stopLoading()
+                        view.destroy()
+                    },
+                )
+            }
+            Column(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                StatusPill("REC: ${item.mode.label.uppercase()} MODE")
+                Text(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color(0xAA000000))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    text = DashCamFormatters.formatTimestamp(item.createdAt),
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            OutlinedButton(onClick = {}) {
+                Text("SHARE")
             }
             Button(
                 modifier = Modifier.testTag("remote_delete_media_button"),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer),
                 onClick = onDeleteClick,
             ) {
-                Text("Delete")
+                Text("DELETE")
             }
         }
-        Text(DashCamFormatters.formatTimestamp(item.createdAt), style = MaterialTheme.typography.titleMedium)
-        if (item.type == MediaType.VIDEO) {
-            AndroidView(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .testTag("remote_video_player"),
-                factory = { context ->
-                    VideoView(context).apply {
-                        val controller = MediaController(context)
-                        controller.setAnchorView(this)
-                        setMediaController(controller)
-                        setOnErrorListener { _, _, _ -> true }
-                    }
-                },
-                update = { view ->
-                    if (view.tag != streamUrl) {
-                        view.stopPlayback()
-                        view.tag = streamUrl
-                        view.setVideoPath(streamUrl)
-                    }
-                },
-                onRelease = { view ->
-                    view.stopPlayback()
-                    view.setMediaController(null)
-                },
-            )
-        } else {
-            Text(
-                modifier = Modifier.testTag("remote_photo_view"),
-                text = streamUrl,
-            )
+        DetailCard(
+            title = "FILE DETAILS",
+            rows = listOf(
+                "Path" to item.path,
+                "Size" to DashCamFormatters.formatFileSize(item.sizeBytes),
+                "Resolution" to listOfNotNull(item.width, item.height).joinToString("x").ifBlank { "--" },
+                "Download" to downloadUrl,
+            ),
+        )
+        DetailCard(
+            title = "TELEMETRY STATS",
+            rows = listOf(
+                "Mode" to item.mode.label,
+                "Frame rate" to (item.fps?.let { "%.1f fps".format(it) } ?: "--"),
+                "Audio" to if (item.hasAudio) "On" else "Off",
+            ),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(220.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(
+                    Brush.linearGradient(
+                        listOf(Color(0xFF1C2026), Color(0xFF0A0E14)),
+                    ),
+                )
+                .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("GPS LOCKED", color = MaterialTheme.colorScheme.secondary, fontFamily = FontFamily.Monospace)
         }
     }
 }
 
 @Composable
-private fun RemoteSettingsPanel(
+private fun DetailCard(
+    title: String,
+    rows: List<Pair<String, String>>,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xFF181C22))
+            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(8.dp))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline, fontWeight = FontWeight.Bold)
+        rows.forEach { (label, value) ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    text = value,
+                    modifier = Modifier.fillMaxWidth(0.62f),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RemoteSettingsScreen(
+    status: RemoteStatus,
     settings: RemoteSettings?,
+    message: String,
     onSettingsChanged: (RemoteSettings) -> Unit,
     onSaveClick: () -> Unit,
 ) {
     val current = settings ?: return
     Column(
-        modifier = Modifier.testTag("remote_settings_screen"),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .testTag("remote_settings_screen")
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("Remote settings", style = MaterialTheme.typography.titleMedium)
-        OutlinedTextField(
+        ModeSettingsCard("Driving Mode", "ACTIVE", MaterialTheme.colorScheme.secondary, current.drivingResolution, "${current.drivingFps}fps", "${current.segmentDurationMinutes}m")
+        ModeSettingsCard("Parking Mode", "STANDBY", MaterialTheme.colorScheme.tertiary, current.parkingResolution, "${current.parkingFps}fps", "Motion")
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .testTag("remote_wake_word_field"),
-            value = current.wakeWord,
-            onValueChange = { onSettingsChanged(current.copy(wakeWord = it)) },
-            label = { Text("Wake word") },
-            singleLine = true,
-        )
-        OutlinedButton(
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("remote_save_settings_button"),
-            onClick = onSaveClick,
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFF1C2026))
+                .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(8.dp))
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Text("Save settings")
+            Text("Hotspot Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            RemoteStatusRow("Hotspot Status", if (status.hotspotEnabled) "On" else "Off")
+            RemoteStatusRow("Network SSID", status.hotspotSsid.ifBlank { "DroidDash" })
+            RemoteStatusRow("Access Password", "************")
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFF1C2026))
+                .border(1.dp, MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp))
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text("Storage", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            OutlinedTextField(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("remote_min_free_space_field"),
+                value = current.minFreeSpaceGb.toString(),
+                onValueChange = { value ->
+                    value.toIntOrNull()?.let { onSettingsChanged(current.copy(minFreeSpaceGb = it)) }
+                },
+                label = { Text("Deletion Threshold GB") },
+                singleLine = true,
+            )
+            RemoteStatusRow("Auto-delete Oldest", "On")
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFF181C22))
+                .border(1.dp, Color(0x22FFB693), RoundedCornerShape(8.dp))
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text("Voice Assistant", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            OutlinedTextField(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("remote_wake_word_field"),
+                value = current.wakeWord,
+                onValueChange = { onSettingsChanged(current.copy(wakeWord = it)) },
+                label = { Text("Keyword") },
+                singleLine = true,
+            )
+            Button(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("remote_save_settings_button"),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                onClick = onSaveClick,
+            ) {
+                Text("SAVE SETTINGS")
+            }
+            if (message.isNotBlank()) {
+                Text(message, color = if (message == "Settings saved") MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModeSettingsCard(
+    title: String,
+    status: String,
+    accent: Color,
+    quality: String,
+    frameRate: String,
+    loop: String,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xFF1C2026))
+            .border(1.dp, accent, RoundedCornerShape(8.dp))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(status, color = accent, fontWeight = FontWeight.Bold)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SettingMetric("QUALITY", quality, Modifier.weight(1f))
+            SettingMetric("FRAME RATE", frameRate, Modifier.weight(1f))
+            SettingMetric("LOOP", loop, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun SettingMetric(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(Color(0x5510141A))
+            .padding(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+        Text(value, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun RemoteBottomNav(
+    selected: RemoteDestination,
+    onDestinationSelected: (RemoteDestination) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(88.dp)
+            .background(Color(0xEE10141A))
+            .border(1.dp, Color(0x1AFFFFFF))
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.SpaceAround,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RemoteDestination.entries.forEach { destination ->
+            Column(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(24.dp))
+                    .clickable { onDestinationSelected(destination) }
+                    .background(if (selected == destination) Color(0x33FF6B00) else Color.Transparent)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .testTag("remote_nav_${destination.name.lowercase()}"),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(destination.label, color = if (selected == destination) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun BrandHeader(
+    trailing: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "DroidDash",
+            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            modifier = Modifier
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0xFF1C2026))
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+            text = trailing,
+            color = MaterialTheme.colorScheme.secondary,
+            fontWeight = FontWeight.Bold,
+        )
+    }
+}
+
+@Composable
+private fun ConnectionIllustration() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(16f / 9f)
+            .clip(RoundedCornerShape(8.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(Color(0xFF2A201D), Color(0xFF181C22)),
+                ),
+            )
+            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(8.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(28.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("CAM", color = MaterialTheme.colorScheme.primary, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+            Text("...", color = MaterialTheme.colorScheme.primary, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+            Text("PHONE", color = MaterialTheme.colorScheme.secondary, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
         }
     }
 }

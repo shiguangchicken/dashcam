@@ -1,11 +1,15 @@
 package com.firmmy.dashcam.feature.recorder
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import com.firmmy.dashcam.core.common.MediaType
 import com.firmmy.dashcam.core.common.RecordingMode
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -28,11 +32,36 @@ class RecorderScreenComposeTest {
             "audio_toggle_button",
             "hotspot_toggle_button",
             "view_files_button",
+            "events_nav_button",
             "recorder_settings_button",
             "recording_status_text",
             "current_mode_text",
         ).forEach { tag ->
             composeRule.onNodeWithTag(tag).assertExists()
+        }
+    }
+
+    @Test
+    fun recorderBottomNavInvokesExistingDestinations() {
+        var openedFiles by mutableStateOf(false)
+        var openedSettings by mutableStateOf(false)
+        composeRule.setContent {
+            MaterialTheme {
+                FakeRecorderScreen(
+                    onViewFilesClick = { openedFiles = true },
+                    onSettingsClick = { openedSettings = true },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("view_files_button").performClick()
+        composeRule.runOnIdle {
+            assertTrue(openedFiles)
+        }
+
+        composeRule.onNodeWithTag("recorder_settings_button").performClick()
+        composeRule.runOnIdle {
+            assertTrue(openedSettings)
         }
     }
 

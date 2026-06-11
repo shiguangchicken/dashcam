@@ -3,6 +3,7 @@ package com.firmmy.dashcam.feature.recorder
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,8 +22,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.RadioButtonChecked
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -36,7 +43,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -156,8 +165,9 @@ fun RecorderScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .padding(horizontal = 20.dp)
+                .padding(top = 16.dp, bottom = 220.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
@@ -175,16 +185,15 @@ fun RecorderScreen(
                 onHotspotToggleClick = onHotspotToggleClick,
                 onSettingsClick = onSettingsClick,
             )
-            RecorderBottomNav(
-                state = state,
-                onDrivingModeClick = onDrivingModeClick,
-                onParkingModeClick = onParkingModeClick,
-                onViewFilesClick = onViewFilesClick,
-                onSettingsClick = onSettingsClick,
-            )
             RemoteAccessPanel(state)
             Spacer(Modifier.height(12.dp))
         }
+        RecorderBottomNav(
+            modifier = Modifier.align(Alignment.BottomCenter),
+            onDrivingModeClick = onDrivingModeClick,
+            onViewFilesClick = onViewFilesClick,
+            onSettingsClick = onSettingsClick,
+        )
     }
 }
 
@@ -397,55 +406,53 @@ private fun RecorderControls(
             }
         }
         RoundControl(if (state.hotspotEnabled) "LINK" else "WIFI", "hotspot_toggle_button", onHotspotToggleClick)
-        RoundControl("SET", "recorder_settings_button", onSettingsClick)
+        RoundControl("SET", "recorder_quick_settings_button", onSettingsClick)
     }
 }
 
 @Composable
 private fun RecorderBottomNav(
-    state: RecorderUiState,
+    modifier: Modifier = Modifier,
     onDrivingModeClick: () -> Unit,
-    onParkingModeClick: () -> Unit,
     onViewFilesClick: () -> Unit,
     onSettingsClick: () -> Unit,
 ) {
-    GlassPanel(
-        modifier = Modifier.fillMaxWidth(),
-        padding = PaddingValues(8.dp),
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(Color(0xFF10141A))
+            .border(1.dp, Color(0x22FFFFFF))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceAround,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            NavButton(
-                label = "Recorder",
-                selected = state.mode == RecordingMode.DRIVING,
-                tag = "mode_driving_button",
-                onClick = onDrivingModeClick,
-                modifier = Modifier.weight(1f),
-            )
-            NavButton(
-                label = "Parking",
-                selected = state.mode == RecordingMode.PARKING,
-                tag = "mode_parking_button",
-                onClick = onParkingModeClick,
-                modifier = Modifier.weight(1f),
-            )
-            NavButton(
-                label = "Media",
-                selected = false,
-                tag = "view_files_button",
-                onClick = onViewFilesClick,
-                modifier = Modifier.weight(1f),
-            )
-            NavButton(
-                label = "Settings",
-                selected = false,
-                tag = "dashboard_settings_nav_button",
-                onClick = onSettingsClick,
-                modifier = Modifier.weight(1f),
-            )
-        }
+        BottomNavItem(
+            label = "Recorder",
+            icon = Icons.Filled.RadioButtonChecked,
+            selected = true,
+            tag = "mode_driving_button",
+            onClick = onDrivingModeClick,
+        )
+        BottomNavItem(
+            label = "Media",
+            icon = Icons.Filled.GridView,
+            selected = false,
+            tag = "view_files_button",
+            onClick = onViewFilesClick,
+        )
+        BottomNavItem(
+            label = "Events",
+            icon = Icons.Filled.WarningAmber,
+            selected = false,
+            tag = "events_nav_button",
+        )
+        BottomNavItem(
+            label = "Settings",
+            icon = Icons.Filled.Settings,
+            selected = false,
+            tag = "recorder_settings_button",
+            onClick = onSettingsClick,
+        )
     }
 }
 
@@ -522,25 +529,41 @@ private fun RoundControl(
 }
 
 @Composable
-private fun NavButton(
+private fun BottomNavItem(
     label: String,
+    icon: ImageVector,
     selected: Boolean,
     tag: String,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    OutlinedButton(
-        modifier = modifier.testTag(tag),
-        onClick = onClick,
-        shape = RoundedCornerShape(24.dp),
-        border = BorderStroke(1.dp, if (selected) SafetyOrange else Color(0x22FFFFFF)),
-        colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = if (selected) SafetyOrange.copy(alpha = 0.18f) else Color.Transparent,
-            contentColor = if (selected) SafetyOrange else MutedText,
-        ),
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
+    val itemColor = if (selected) Color(0xFF351000) else MutedText.copy(alpha = 0.78f)
+    val itemModifier = if (onClick != null) {
+        modifier.clickable(role = Role.Button, onClick = onClick)
+    } else {
+        modifier
+    }
+    Column(
+        modifier = itemModifier
+            .testTag(tag)
+            .clip(RoundedCornerShape(if (selected) 14.dp else 8.dp))
+            .background(if (selected) SafetyOrange else Color.Transparent)
+            .padding(horizontal = if (selected) 26.dp else 14.dp, vertical = 9.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
-        Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            modifier = Modifier.size(25.dp),
+            tint = itemColor,
+        )
+        Text(
+            text = label,
+            color = itemColor,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
 

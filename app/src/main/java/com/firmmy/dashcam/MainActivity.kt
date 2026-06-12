@@ -240,44 +240,17 @@ private fun HomeScreen(
         return
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF10141A))
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFF181C22))
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "DroidDash",
-                color = Color(0xFFFF6B00),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = if (role == DeviceRole.RECORDER) "GPS LOCKED" else role.label,
-                color = Color(0xFF98CBFF),
-                fontWeight = FontWeight.Bold,
-            )
-        }
-        SettingsScreen(
-            modifier = Modifier.weight(1f),
-            settings = settings.copy(deviceRole = role),
-            onSave = { updatedSettings ->
-                onSettingsSaved(updatedSettings)
-                if (updatedSettings.deviceRole == DeviceRole.RECORDER || updatedSettings.deviceRole == DeviceRole.REMOTE) {
-                    showSettings = false
-                }
-            },
-        )
-    }
+    SettingsScreen(
+        modifier = Modifier.fillMaxSize(),
+        settings = settings.copy(deviceRole = role),
+        onBackClick = { showSettings = false },
+        onSave = { updatedSettings ->
+            onSettingsSaved(updatedSettings)
+            if (updatedSettings.deviceRole == DeviceRole.RECORDER || updatedSettings.deviceRole == DeviceRole.REMOTE) {
+                showSettings = false
+            }
+        },
+    )
 }
 
 @Composable

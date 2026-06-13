@@ -1,9 +1,12 @@
 package com.firmmy.dashcam.feature.settings
 
+import android.graphics.Bitmap
+import android.graphics.Color as AndroidColor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,8 +25,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DirectionsCar
@@ -45,6 +49,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +57,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -64,6 +70,8 @@ import androidx.compose.ui.unit.sp
 import com.firmmy.dashcam.core.common.DeviceRole
 import com.firmmy.dashcam.core.database.DashCamSettings
 import com.firmmy.dashcam.core.database.SettingsDefaults
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.qrcode.QRCodeWriter
 
 private val Surface = Color(0xFF10141A)
 private val SurfaceLow = Color(0xFF181C22)
@@ -77,15 +85,43 @@ private val SecondaryBlue = Color(0xFF00A2FD)
 private val SecondaryText = Color(0xFF98CBFF)
 private val TertiaryGreen = Color(0xFF4AE183)
 private val Outline = Color(0x335A4136)
+private const val HOTSPOT_SECTION_INDEX = 2
+
+enum class SettingsInitialSection {
+    Top,
+    Hotspot,
+}
 
 @Composable
 fun SettingsScreen(
     settings: DashCamSettings,
     onSave: (DashCamSettings) -> Unit,
     modifier: Modifier = Modifier,
+    initialSection: SettingsInitialSection = SettingsInitialSection.Top,
+    hotspotEnabled: Boolean = settings.hotspotSsid.isNotBlank(),
+    hotspotStarting: Boolean = false,
+    hotspotSsid: String = settings.hotspotSsid,
+    hotspotPassword: String = settings.hotspotPassword,
+    remoteServerUrl: String = "",
+    remoteQrText: String = "",
+    hotspotError: String = "",
+    onHotspotToggle: (Boolean) -> Unit = {},
     onBackClick: (() -> Unit)? = null,
 ) {
     var editableSettings by remember(settings) { mutableStateOf(settings) }
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = if (initialSection == SettingsInitialSection.Hotspot) {
+            HOTSPOT_SECTION_INDEX
+        } else {
+            0
+        },
+    )
+
+    LaunchedEffect(initialSection) {
+        if (initialSection == SettingsInitialSection.Hotspot) {
+            listState.animateScrollToItem(HOTSPOT_SECTION_INDEX)
+        }
+    }
 
     Column(
         modifier = modifier
@@ -97,14 +133,16 @@ fun SettingsScreen(
     ) {
         SettingsTopBar(onBackClick = onBackClick)
 
-        Column(
+        LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .verticalScroll(rememberScrollState()),
+                .testTag("settings_list"),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-        ModeDashboardCard(
+        item {
+            ModeDashboardCard(
             title = "Driving Mode",
             status = "ACTIVE",
             icon = Icons.Filled.DirectionsCar,
@@ -140,8 +178,10 @@ fun SettingsScreen(
                 onSelected = { editableSettings = editableSettings.copy(drivingBitrateKbps = it) },
             )
         }
+        }
 
-        ModeDashboardCard(
+        item {
+            ModeDashboardCard(
             title = "Parking Mode",
             status = "STANDBY",
             icon = Icons.Filled.LocalParking,
@@ -181,36 +221,68 @@ fun SettingsScreen(
                 onSelected = { editableSettings = editableSettings.copy(parkingBitrateKbps = it) },
             )
         }
+        }
 
-        DashboardCard {
+        item {
+            DashboardCard(modifier = Modifier.testTag("settings_hotspot_section")) {
             SectionTitle(
                 title = "Hotspot Settings",
                 icon = Icons.Filled.WifiTethering,
                 iconTint = OnSurface,
             )
             SwitchRow(
-                label = "Hotspot Status",
-                tag = null,
-                checked = editableSettings.hotspotSsid.isNotBlank(),
-                enabled = false,
-                onCheckedChange = {},
+                label = if (hotspotStarting) "Hotspot Status (Starting)" else "Hotspot Status",
+                tag = "settings_hotspot_toggle",
+                checked = hotspotEnabled,
+                onCheckedChange = onHotspotToggle,
             )
             CredentialField(
                 label = "NETWORK SSID (VISIBLE)",
-                value = editableSettings.hotspotSsid.ifBlank { "DroidDash_Cam" },
+                value = hotspotSsid.ifBlank { "DroidDash_Cam" },
                 tag = "settings_hotspot_ssid_field",
                 icon = Icons.Filled.ContentCopy,
             )
             CredentialField(
                 label = "ACCESS PASSWORD",
-                value = editableSettings.hotspotPassword,
+                value = hotspotPassword,
                 tag = "settings_wifi_password_field",
                 icon = Icons.Filled.Visibility,
                 masked = true,
             )
+            if (remoteServerUrl.isNotBlank()) {
+                CredentialField(
+                    label = "SERVER URL",
+                    value = remoteServerUrl,
+                    tag = "settings_remote_server_url_field",
+                    icon = Icons.Filled.ContentCopy,
+                )
+            }
+            if (hotspotError.isNotBlank()) {
+                Text(
+                    modifier = Modifier.testTag("settings_hotspot_error_text"),
+                    text = hotspotError,
+                    color = SafetyOrange,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            if (remoteQrText.isNotBlank()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("Scan to connect", color = OnSurfaceMuted)
+                    QrCodeImage(
+                        text = remoteQrText,
+                        modifier = Modifier.testTag("hotspot_qr_code"),
+                    )
+                }
+            }
+        }
         }
 
-        DashboardCard(accent = SafetyOrange) {
+        item {
+            DashboardCard(accent = SafetyOrange) {
             SectionTitle(
                 title = "Storage",
                 icon = Icons.Filled.SdStorage,
@@ -261,19 +333,24 @@ fun SettingsScreen(
                 textAlign = TextAlign.Center,
             )
         }
+        }
 
-        VoiceAssistantCard(
+        item {
+            VoiceAssistantCard(
             settings = editableSettings,
             onAudioChange = { editableSettings = editableSettings.copy(audioEnabled = it) },
             onVoiceWakeupChange = { editableSettings = editableSettings.copy(voiceWakeupEnabled = it) },
             onWakeWordChange = { editableSettings = editableSettings.copy(wakeWord = it) },
             onSave = { onSave(editableSettings) },
         )
+        }
 
-        DeviceHeader(
+        item {
+            DeviceHeader(
             role = editableSettings.deviceRole,
             onRoleSelected = { editableSettings = editableSettings.copy(deviceRole = it) },
         )
+        }
         }
     }
 }
@@ -536,6 +613,31 @@ private fun CredentialField(
                 modifier = Modifier.weight(1f),
             )
             Icon(icon, contentDescription = null, tint = OnSurface.copy(alpha = 0.55f), modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+@Composable
+private fun QrCodeImage(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    val bitmap = remember(text) { createQrBitmap(text) }
+    Image(
+        bitmap = bitmap.asImageBitmap(),
+        contentDescription = "Remote connection QR code",
+        modifier = modifier.size(280.dp),
+    )
+}
+
+private fun createQrBitmap(text: String): Bitmap {
+    val size = 768
+    val matrix = QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, size, size)
+    return Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).apply {
+        for (x in 0 until size) {
+            for (y in 0 until size) {
+                setPixel(x, y, if (matrix[x, y]) AndroidColor.BLACK else AndroidColor.WHITE)
+            }
         }
     }
 }

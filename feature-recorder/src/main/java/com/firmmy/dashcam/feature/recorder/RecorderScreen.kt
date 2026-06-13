@@ -46,7 +46,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -166,7 +165,7 @@ fun RecorderScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 20.dp)
-                .padding(top = 16.dp, bottom = 220.dp)
+                .padding(top = 16.dp, bottom = 96.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -185,7 +184,6 @@ fun RecorderScreen(
                 onHotspotToggleClick = onHotspotToggleClick,
                 onSettingsClick = onSettingsClick,
             )
-            RemoteAccessPanel(state)
             Spacer(Modifier.height(12.dp))
         }
         RecorderBottomNav(
@@ -212,7 +210,7 @@ fun FakeRecorderScreen(
         onParkingModeClick = { stateHolder.switchMode(RecordingMode.PARKING) },
         onTakePhotoClick = stateHolder::takePhoto,
         onAudioToggleClick = stateHolder::toggleAudio,
-        onHotspotToggleClick = stateHolder::toggleHotspot,
+        onHotspotToggleClick = onSettingsClick,
         onViewFilesClick = onViewFilesClick,
         onSettingsClick = onSettingsClick,
     )
@@ -457,58 +455,6 @@ private fun RecorderBottomNav(
 }
 
 @Composable
-private fun RemoteAccessPanel(state: RecorderUiState) {
-    GlassPanel(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column {
-                Text("Active Remote Viewers", color = Foreground, fontWeight = FontWeight.Bold)
-                Text(
-                    if (state.hotspotEnabled) "Hotspot ready for remote clients" else "Hotspot is off",
-                    color = MutedText,
-                    fontSize = 12.sp,
-                )
-            }
-            Text(
-                if (state.hotspotEnabled) "READY" else "OFF",
-                color = if (state.hotspotEnabled) SafetyOrange else MutedText,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-            )
-        }
-        if (state.hotspotSsid.isNotBlank()) {
-            StatusRow("SSID", state.hotspotSsid, Modifier.testTag("hotspot_ssid_text"))
-        }
-        if (state.hotspotPassword.isNotBlank()) {
-            StatusRow("Password", state.hotspotPassword, Modifier.testTag("hotspot_password_text"))
-        }
-        if (state.remoteServerUrl.isNotBlank()) {
-            StatusRow("Server", state.remoteServerUrl, Modifier.testTag("remote_server_url_text"))
-        }
-        if (state.hotspotError.isNotBlank()) {
-            StatusRow("Hotspot", state.hotspotError, Modifier.testTag("hotspot_error_text"))
-        }
-        StatusRow("Photos", state.photoCount.toString())
-        if (state.remoteQrText.isNotBlank()) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text("Scan to connect", color = MutedText)
-                QrCodeImage(
-                    text = state.remoteQrText,
-                    modifier = Modifier.testTag("hotspot_qr_code"),
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun RoundControl(
     label: String,
     tag: String,
@@ -618,31 +564,6 @@ private fun GlassPanel(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         content = content,
     )
-}
-
-@Composable
-private fun StatusRow(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .semantics(mergeDescendants = true) {},
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, color = MutedText, fontSize = 13.sp)
-        Spacer(Modifier.width(12.dp))
-        Text(
-            text = value,
-            color = Foreground,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 13.sp,
-            textAlign = TextAlign.End,
-        )
-    }
 }
 
 private fun RecordingMode.toRecordingStatus(): RecordingStatus =

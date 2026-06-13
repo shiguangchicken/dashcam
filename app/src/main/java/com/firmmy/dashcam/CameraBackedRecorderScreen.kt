@@ -2,24 +2,16 @@ package com.firmmy.dashcam
 
 import android.content.Context
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
-import com.firmmy.dashcam.core.common.DashCamCommand
 import com.firmmy.dashcam.core.common.RecordingMode
 import com.firmmy.dashcam.core.common.RecordingStatus
 import com.firmmy.dashcam.core.database.DashCamSettings
-import com.firmmy.dashcam.core.network.AndroidLocalOnlyHotspotStarter
-import com.firmmy.dashcam.core.network.EmbeddedHttpServer
-import com.firmmy.dashcam.core.network.HotspotController
-import com.firmmy.dashcam.core.network.HotspotState
-import com.firmmy.dashcam.core.network.RemoteConnectionPayload
 import com.firmmy.dashcam.core.voice.VoiceListeningStatus
 import com.firmmy.dashcam.core.voice.VoiceRuntimeConditions
 import com.firmmy.dashcam.core.voice.VoiceSafetyPolicy
@@ -31,36 +23,15 @@ import kotlinx.coroutines.delay
 fun CameraBackedRecorderScreen(
     context: Context,
     settings: DashCamSettings,
+    hotspot: RecorderHotspotUiState,
     modifier: Modifier = Modifier,
-    onHotspotCredentialsChanged: (ssid: String, password: String) -> Unit = { _, _ -> },
+    onHotspotClick: () -> Unit = {},
     onViewFilesClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
 ) {
     var state by remember { mutableStateOf(RecorderUiState()) }
     var recordingStartedAtMillis by remember { mutableStateOf<Long?>(null) }
     var lastRuntimeStatus by remember { mutableStateOf(RecordingStatus.IDLE) }
-    val applicationContext = context.applicationContext
-    val hotspotController = remember(applicationContext) {
-        HotspotController(AndroidLocalOnlyHotspotStarter(applicationContext))
-    }
-    val remoteServerController = remember(applicationContext) {
-        AppRemoteServerController(applicationContext) { command ->
-            when (command) {
-                DashCamCommand.StartHotspot -> {
-                    hotspotController.start().isSuccess
-                }
-
-                DashCamCommand.StopHotspot -> {
-                    hotspotController.stop()
-                    true
-                }
-
-                else -> false
-            }
-        }
-    }
-    val hotspotState by hotspotController.state.collectAsState()
-    var addressesBeforeHotspot by remember { mutableStateOf(emptySet<String>()) }
     val voiceStatus = remember(
         settings.voiceWakeupEnabled,
         state.audioEnabled,
@@ -84,73 +55,6 @@ fun CameraBackedRecorderScreen(
 
     LaunchedEffect(voiceStatus) {
         state = state.copy(voiceStatus = voiceStatus)
-    }
-
-    DisposableEffect(remoteServerController) {
-        onDispose {
-            remoteServerController.stop()
-            hotspotController.stop()
-        }
-    }
-
-    LaunchedEffect(hotspotState) {
-        state = when (val currentHotspotState = hotspotState) {
-            HotspotState.Stopped -> {
-                remoteServerController.stop()
-                RecorderRuntimeState.updateHotspot(enabled = false, ssid = "")
-                state.copy(
-                    hotspotEnabled = false,
-                    remoteServerUrl = "",
-                    remoteQrText = "",
-                    hotspotError = "",
-                )
-            }
-
-            HotspotState.Starting -> state.copy(
-                hotspotEnabled = false,
-                remoteServerUrl = "",
-                remoteQrText = "",
-                hotspotError = "Starting",
-            )
-
-            is HotspotState.Started -> {
-                remoteServerController.start()
-                RecorderRuntimeState.updateHotspot(
-                    enabled = true,
-                    ssid = currentHotspotState.credentials.ssid,
-                )
-                val baseUrl = HotspotEndpointResolver.resolveBaseUrl(addressesBeforeHotspot)
-                val qrText = if (baseUrl.isNotBlank()) {
-                    RemoteConnectionPayload(
-                        ssid = currentHotspotState.credentials.ssid,
-                        password = currentHotspotState.credentials.password,
-                        baseUrl = baseUrl,
-                        port = EmbeddedHttpServer.DEFAULT_PORT,
-                    ).toQrText()
-                } else {
-                    ""
-                }
-                onHotspotCredentialsChanged(
-                    currentHotspotState.credentials.ssid,
-                    currentHotspotState.credentials.password,
-                )
-                state.copy(
-                    hotspotEnabled = true,
-                    hotspotSsid = currentHotspotState.credentials.ssid,
-                    hotspotPassword = currentHotspotState.credentials.password,
-                    remoteServerUrl = baseUrl,
-                    remoteQrText = qrText,
-                    hotspotError = "",
-                )
-            }
-
-            is HotspotState.Failed -> state.copy(
-                hotspotEnabled = false,
-                remoteServerUrl = "",
-                remoteQrText = "",
-                hotspotError = currentHotspotState.message,
-            )
-        }
     }
 
     LaunchedEffect(state.recordingStatus, recordingStartedAtMillis) {
@@ -191,7 +95,14 @@ fun CameraBackedRecorderScreen(
 
     RecorderScreen(
         modifier = modifier,
-        state = state,
+        state = state.copy(
+            hotspotEnabled = hotspot.enabled,
+            hotspotSsid = hotspot.ssid,
+            hotspotPassword = hotspot.password,
+            remoteServerUrl = hotspot.remoteServerUrl,
+            remoteQrText = hotspot.remoteQrText,
+            hotspotError = hotspot.error,
+        ),
         onStartStopClick = {
             if (state.recordingStatus == RecordingStatus.IDLE) {
                 val action = when (state.mode) {
@@ -236,14 +147,7 @@ fun CameraBackedRecorderScreen(
         onAudioToggleClick = {
             state = state.copy(audioEnabled = !state.audioEnabled)
         },
-        onHotspotToggleClick = {
-            if (hotspotState is HotspotState.Started || hotspotState is HotspotState.Starting) {
-                hotspotController.stop()
-            } else {
-                addressesBeforeHotspot = HotspotEndpointResolver.privateIpv4Addresses()
-                hotspotController.start()
-            }
-        },
+        onHotspotToggleClick = onHotspotClick,
         onViewFilesClick = onViewFilesClick,
         onSettingsClick = onSettingsClick,
     )

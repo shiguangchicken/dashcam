@@ -58,6 +58,18 @@ class MainActivityTest {
     }
 
     @Test
+    fun recorderWifiButtonNavigatesToHotspotSettings() {
+        setDashCamContent()
+
+        composeRule.onNodeWithTag("role_recorder_button").performClick()
+        composeRule.onNodeWithTag("permission_continue_button").performClick()
+        composeRule.onNodeWithTag("hotspot_toggle_button").performClick()
+
+        composeRule.onNodeWithTag("settings_screen").assertIsDisplayed()
+        composeRule.onNodeWithTag("settings_hotspot_section").assertIsDisplayed()
+    }
+
+    @Test
     fun selectingRemoteShowsConnectionScreen() {
         setDashCamContent()
 
@@ -71,6 +83,7 @@ class MainActivityTest {
             DashCamTheme {
                 RemoteConnectionScreen(
                     context = LocalContext.current,
+                    requireCameraPermission = false,
                     scannerContent = { modifier, _ ->
                         Box(
                             modifier = modifier

@@ -4,9 +4,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.firmmy.dashcam.core.common.MediaType
 import com.firmmy.dashcam.core.common.RecordingMode
 import org.junit.Assert.assertTrue
@@ -39,6 +42,7 @@ class RecorderScreenComposeTest {
         ).forEach { tag ->
             composeRule.onNodeWithTag(tag).assertExists()
         }
+        composeRule.onAllNodesWithTag("hotspot_qr_code").assertCountEquals(0)
     }
 
     @Test
@@ -60,6 +64,23 @@ class RecorderScreenComposeTest {
         }
 
         composeRule.onNodeWithTag("recorder_settings_button").performClick()
+        composeRule.runOnIdle {
+            assertTrue(openedSettings)
+        }
+    }
+
+    @Test
+    fun recorderWifiButtonInvokesSettingsDestination() {
+        var openedSettings = false
+        composeRule.setContent {
+            MaterialTheme {
+                FakeRecorderScreen(
+                    onSettingsClick = { openedSettings = true },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("hotspot_toggle_button").performScrollTo().performClick()
         composeRule.runOnIdle {
             assertTrue(openedSettings)
         }

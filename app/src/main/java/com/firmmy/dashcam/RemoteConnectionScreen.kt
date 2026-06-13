@@ -1,9 +1,13 @@
 package com.firmmy.dashcam
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.BackHandler
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -46,6 +50,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.firmmy.dashcam.core.network.RemoteConnectionPayload
 import com.firmmy.dashcam.feature.remote.RemoteViewerScreen
 import kotlinx.coroutines.launch
@@ -59,6 +64,7 @@ typealias RemoteQrScannerContent = @Composable (
 fun RemoteConnectionScreen(
     context: Context,
     modifier: Modifier = Modifier,
+    requireCameraPermission: Boolean = true,
     scannerContent: RemoteQrScannerContent = { scannerModifier, onPayloadScanned ->
         RemoteQrScanner(
             modifier = scannerModifier,
@@ -75,6 +81,16 @@ fun RemoteConnectionScreen(
     var connectingWifi by remember { mutableStateOf(false) }
     var wifiConnected by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            message = ""
+            scanning = true
+        } else {
+            message = "Camera permission is required to scan the recorder QR code."
+        }
+    }
 
     DisposableEffect(wifiConnector) {
         onDispose { wifiConnector.release() }
@@ -134,7 +150,18 @@ fun RemoteConnectionScreen(
     }
 
     RemoteConnectionSetupScreen(
-        onScanClick = { scanning = true },
+        message = message,
+        onScanClick = {
+            if (!requireCameraPermission ||
+                ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.CAMERA) ==
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                message = ""
+                scanning = true
+            } else {
+                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            }
+        },
         modifier = modifier,
     )
 }
@@ -173,6 +200,7 @@ private fun RemoteQrScannerScreen(
 @Composable
 private fun RemoteConnectionSetupScreen(
     onScanClick: () -> Unit,
+    message: String,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -234,6 +262,13 @@ private fun RemoteConnectionSetupScreen(
                     onClick = onScanClick,
                 ) {
                     Text("SCAN TO CONNECT", fontWeight = FontWeight.Bold)
+                }
+                if (message.isNotBlank()) {
+                    Text(
+                        modifier = Modifier.testTag("remote_connection_message_text"),
+                        text = message,
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
             }
             Row(

@@ -5,10 +5,8 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -17,31 +15,37 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.firmmy.dashcam.core.common.DashCamCommand
 import com.firmmy.dashcam.core.common.DeviceRole
 import com.firmmy.dashcam.core.common.MediaType
 import com.firmmy.dashcam.core.common.RecordingMode
-import com.firmmy.dashcam.core.database.DashCamSettings
 import com.firmmy.dashcam.core.database.DashCamDatabaseProvider
+import com.firmmy.dashcam.core.database.DashCamSettings
 import com.firmmy.dashcam.core.database.MediaFileEntity
 import com.firmmy.dashcam.core.database.MediaRepository
 import com.firmmy.dashcam.core.media.AndroidThumbnailGenerator
 import com.firmmy.dashcam.core.media.DashCamMediaDirectories
 import com.firmmy.dashcam.core.media.DashCamMediaRepository
+import com.firmmy.dashcam.core.network.AndroidLocalOnlyHotspotStarter
+import com.firmmy.dashcam.core.network.EmbeddedHttpServer
+import com.firmmy.dashcam.core.network.HotspotController
+import com.firmmy.dashcam.core.network.HotspotState
+import com.firmmy.dashcam.core.network.RemoteConnectionPayload
 import com.firmmy.dashcam.feature.recorder.MediaBrowserItem
 import com.firmmy.dashcam.feature.recorder.MediaBrowserScreen
+import com.firmmy.dashcam.feature.settings.SettingsInitialSection
 import com.firmmy.dashcam.feature.settings.SettingsScreen
 import com.firmmy.dashcam.ui.theme.DashCamTheme
 import kotlinx.coroutines.Dispatchers
@@ -200,6 +204,16 @@ private fun PermissionGuideScreen(
     }
 }
 
+data class RecorderHotspotUiState(
+    val enabled: Boolean = false,
+    val starting: Boolean = false,
+    val ssid: String = "",
+    val password: String = "",
+    val remoteServerUrl: String = "",
+    val remoteQrText: String = "",
+    val error: String = "",
+)
+
 @Composable
 private fun HomeScreen(
     role: DeviceRole,
@@ -207,8 +221,121 @@ private fun HomeScreen(
     onSettingsSaved: (DashCamSettings) -> Unit,
 ) {
     var showSettings by remember { mutableStateOf(false) }
+    var settingsInitialSection by remember { mutableStateOf(SettingsInitialSection.Top) }
     var showFiles by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val applicationContext = context.applicationContext
+    val hotspotController = remember(applicationContext) {
+        HotspotController(AndroidLocalOnlyHotspotStarter(applicationContext))
+    }
+    var addressesBeforeHotspot by remember { mutableStateOf(emptySet<String>()) }
+    val remoteServerController = remember(applicationContext, hotspotController) {
+        AppRemoteServerController(applicationContext) { command ->
+            when (command) {
+                DashCamCommand.StartHotspot -> {
+                    addressesBeforeHotspot = HotspotEndpointResolver.privateIpv4Addresses()
+                    hotspotController.start().isSuccess
+                }
+
+                DashCamCommand.StopHotspot -> {
+                    hotspotController.stop()
+                    true
+                }
+
+                else -> false
+            }
+        }
+    }
+    val hotspotState by hotspotController.state.collectAsState()
+    var recorderHotspot by remember {
+        mutableStateOf(
+            RecorderHotspotUiState(
+                ssid = settings.hotspotSsid,
+                password = settings.hotspotPassword,
+            ),
+        )
+    }
+
+    fun setHotspotEnabled(enabled: Boolean) {
+        if (enabled) {
+            addressesBeforeHotspot = HotspotEndpointResolver.privateIpv4Addresses()
+            hotspotController.start()
+        } else {
+            hotspotController.stop()
+        }
+    }
+
+    DisposableEffect(remoteServerController) {
+        onDispose {
+            remoteServerController.stop()
+            hotspotController.stop()
+        }
+    }
+
+    LaunchedEffect(hotspotState) {
+        recorderHotspot = when (val currentHotspotState = hotspotState) {
+            HotspotState.Stopped -> {
+                remoteServerController.stop()
+                RecorderRuntimeState.updateHotspot(enabled = false, ssid = "")
+                recorderHotspot.copy(
+                    enabled = false,
+                    starting = false,
+                    remoteServerUrl = "",
+                    remoteQrText = "",
+                    error = "",
+                )
+            }
+
+            HotspotState.Starting -> recorderHotspot.copy(
+                enabled = false,
+                starting = true,
+                remoteServerUrl = "",
+                remoteQrText = "",
+                error = "Starting",
+            )
+
+            is HotspotState.Started -> {
+                remoteServerController.start()
+                RecorderRuntimeState.updateHotspot(
+                    enabled = true,
+                    ssid = currentHotspotState.credentials.ssid,
+                )
+                val baseUrl = HotspotEndpointResolver.resolveBaseUrl(addressesBeforeHotspot)
+                val qrText = if (baseUrl.isNotBlank()) {
+                    RemoteConnectionPayload(
+                        ssid = currentHotspotState.credentials.ssid,
+                        password = currentHotspotState.credentials.password,
+                        baseUrl = baseUrl,
+                        port = EmbeddedHttpServer.DEFAULT_PORT,
+                    ).toQrText()
+                } else {
+                    ""
+                }
+                val updatedSettings = settings.copy(
+                    hotspotSsid = currentHotspotState.credentials.ssid,
+                    hotspotPassword = currentHotspotState.credentials.password,
+                )
+                onSettingsSaved(updatedSettings)
+                RecorderHotspotUiState(
+                    enabled = true,
+                    starting = false,
+                    ssid = currentHotspotState.credentials.ssid,
+                    password = currentHotspotState.credentials.password,
+                    remoteServerUrl = baseUrl,
+                    remoteQrText = qrText,
+                    error = "",
+                )
+            }
+
+            is HotspotState.Failed -> recorderHotspot.copy(
+                enabled = false,
+                starting = false,
+                remoteServerUrl = "",
+                remoteQrText = "",
+                error = currentHotspotState.message,
+            )
+        }
+    }
 
     if (role == DeviceRole.REMOTE && !showSettings) {
         RemoteConnectionScreen(context = context)
@@ -227,15 +354,16 @@ private fun HomeScreen(
         CameraBackedRecorderScreen(
             context = context,
             settings = settings,
-            onHotspotCredentialsChanged = { ssid, password ->
-                val updatedSettings = settings.copy(
-                    hotspotSsid = ssid,
-                    hotspotPassword = password,
-                )
-                onSettingsSaved(updatedSettings)
+            hotspot = recorderHotspot,
+            onHotspotClick = {
+                settingsInitialSection = SettingsInitialSection.Hotspot
+                showSettings = true
             },
             onViewFilesClick = { showFiles = true },
-            onSettingsClick = { showSettings = true },
+            onSettingsClick = {
+                settingsInitialSection = SettingsInitialSection.Top
+                showSettings = true
+            },
         )
         return
     }
@@ -243,10 +371,23 @@ private fun HomeScreen(
     SettingsScreen(
         modifier = Modifier.fillMaxSize(),
         settings = settings.copy(deviceRole = role),
-        onBackClick = { showSettings = false },
+        initialSection = settingsInitialSection,
+        hotspotEnabled = recorderHotspot.enabled,
+        hotspotStarting = recorderHotspot.starting,
+        hotspotSsid = recorderHotspot.ssid.ifBlank { settings.hotspotSsid },
+        hotspotPassword = recorderHotspot.password.ifBlank { settings.hotspotPassword },
+        remoteServerUrl = recorderHotspot.remoteServerUrl,
+        remoteQrText = recorderHotspot.remoteQrText,
+        hotspotError = recorderHotspot.error,
+        onHotspotToggle = ::setHotspotEnabled,
+        onBackClick = {
+            settingsInitialSection = SettingsInitialSection.Top
+            showSettings = false
+        },
         onSave = { updatedSettings ->
             onSettingsSaved(updatedSettings)
             if (updatedSettings.deviceRole == DeviceRole.RECORDER || updatedSettings.deviceRole == DeviceRole.REMOTE) {
+                settingsInitialSection = SettingsInitialSection.Top
                 showSettings = false
             }
         },

@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.firmmy.dashcam.core.network.RemoteConnectionPayload
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.BinaryBitmap
@@ -35,6 +36,7 @@ fun RemoteQrScanner(
     onPayloadScanned: (RemoteConnectionPayload) -> Unit,
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val executor = remember { Executors.newSingleThreadExecutor() }
 
     DisposableEffect(Unit) {
@@ -49,6 +51,7 @@ fun RemoteQrScanner(
                 scaleType = PreviewView.ScaleType.FILL_CENTER
                 bindQrScanner(
                     context = context,
+                    lifecycleOwner = lifecycleOwner,
                     previewView = this,
                     executor = executor,
                     onPayloadScanned = onPayloadScanned,
@@ -60,11 +63,11 @@ fun RemoteQrScanner(
 
 private fun bindQrScanner(
     context: Context,
+    lifecycleOwner: LifecycleOwner,
     previewView: PreviewView,
     executor: java.util.concurrent.Executor,
     onPayloadScanned: (RemoteConnectionPayload) -> Unit,
 ) {
-    val lifecycleOwner = context as? LifecycleOwner ?: return
     val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
     cameraProviderFuture.addListener(
         {

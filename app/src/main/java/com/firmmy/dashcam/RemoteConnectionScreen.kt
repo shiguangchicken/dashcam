@@ -3,6 +3,7 @@ package com.firmmy.dashcam
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -19,8 +20,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -87,11 +92,16 @@ fun RemoteConnectionScreen(
     }
 
     if (scanning) {
-        scannerContent(modifier) {
-            payload = it
-            scanning = false
-            message = ""
-        }
+        RemoteQrScannerScreen(
+            scannerContent = scannerContent,
+            onBackClick = { scanning = false },
+            onPayloadScanned = {
+                payload = it
+                scanning = false
+                message = ""
+            },
+            modifier = modifier,
+        )
         return
     }
 
@@ -127,6 +137,37 @@ fun RemoteConnectionScreen(
         onScanClick = { scanning = true },
         modifier = modifier,
     )
+}
+
+@Composable
+private fun RemoteQrScannerScreen(
+    scannerContent: RemoteQrScannerContent,
+    onBackClick: () -> Unit,
+    onPayloadScanned: (RemoteConnectionPayload) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    BackHandler(onBack = onBackClick)
+
+    Box(modifier = modifier.fillMaxSize()) {
+        scannerContent(
+            Modifier.fillMaxSize(),
+            onPayloadScanned,
+        )
+        IconButton(
+            modifier = Modifier
+                .padding(16.dp)
+                .clip(CircleShape)
+                .background(Color(0xCC10141A))
+                .testTag("remote_scanner_back_button"),
+            onClick = onBackClick,
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back",
+                tint = Color.White,
+            )
+        }
+    }
 }
 
 @Composable

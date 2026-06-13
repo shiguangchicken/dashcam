@@ -1,7 +1,13 @@
 package com.firmmy.dashcam
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Text
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -56,6 +62,34 @@ class MainActivityTest {
         setDashCamContent()
 
         composeRule.onNodeWithTag("role_remote_button").performClick()
+        composeRule.onNodeWithTag("remote_scan_qr_button").assertIsDisplayed()
+    }
+
+    @Test
+    fun scannerScreenBackButtonReturnsToConnectionScreen() {
+        composeRule.setContent {
+            DashCamTheme {
+                RemoteConnectionScreen(
+                    context = LocalContext.current,
+                    scannerContent = { modifier, _ ->
+                        Box(
+                            modifier = modifier
+                                .fillMaxSize()
+                                .testTag("fake_remote_qr_scanner"),
+                        ) {
+                            Text("Fake scanner")
+                        }
+                    },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("remote_scan_qr_button").performClick()
+        composeRule.onNodeWithTag("fake_remote_qr_scanner").assertIsDisplayed()
+        composeRule.onNodeWithTag("remote_scanner_back_button").assertIsDisplayed()
+
+        composeRule.onNodeWithTag("remote_scanner_back_button").performClick()
+
         composeRule.onNodeWithTag("remote_scan_qr_button").assertIsDisplayed()
     }
 

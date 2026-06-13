@@ -44,6 +44,7 @@ fun RemoteQrScanner(
         modifier = modifier.fillMaxSize(),
         factory = { viewContext ->
             PreviewView(viewContext).apply {
+                implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                 scaleType = PreviewView.ScaleType.FILL_CENTER
                 bindQrScanner(
                     context = context,

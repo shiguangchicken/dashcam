@@ -21,9 +21,10 @@ import com.firmmy.dashcam.core.network.RemoteConnectionPayload
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.BinaryBitmap
 import com.google.zxing.DecodeHintType
+import com.google.zxing.LuminanceSource
 import com.google.zxing.MultiFormatReader
-import com.google.zxing.NotFoundException
 import com.google.zxing.PlanarYUVLuminanceSource
+import com.google.zxing.common.GlobalHistogramBinarizer
 import com.google.zxing.common.HybridBinarizer
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -140,13 +141,68 @@ private fun MultiFormatReader.decodeQrText(imageProxy: ImageProxy): String? {
         imageProxy.height,
         false,
     )
-    return runCatching {
-        decodeWithState(BinaryBitmap(HybridBinarizer(source))).text
-    }.recoverCatching { error ->
-        if (error is NotFoundException) {
-            decodeWithState(BinaryBitmap(HybridBinarizer(source.invert()))).text
-        } else {
-            throw error
-        }
-    }.getOrNull()
+    return source.decodeCandidates().firstNotNullOfOrNull { candidate ->
+        decodeQrSource(candidate)
+            ?: decodeQrSource(candidate.invert())
+    }
 }
+
+private fun LuminanceSource.decodeCandidates(): List<LuminanceSource> =
+    rotations().flatMap { rotatedSource ->
+        buildList {
+            add(rotatedSource)
+            addAll(rotatedSource.crops())
+        }
+    }
+
+private fun LuminanceSource.rotations(): List<LuminanceSource> {
+    val sources = mutableListOf(this)
+    var current = this
+    repeat(3) {
+        current = runCatching { current.rotateCounterClockwise() }.getOrNull() ?: return sources
+        sources += current
+    }
+    return sources
+}
+
+private fun LuminanceSource.crops(): List<LuminanceSource> {
+    if (!isCropSupported) return emptyList()
+    val candidates = mutableListOf<LuminanceSource>()
+    addInsetCropTo(candidates, 10)
+    addInsetCropTo(candidates, 20)
+    addCenteredSquareCropTo(candidates)
+    return candidates
+}
+
+private fun LuminanceSource.addInsetCropTo(
+    candidates: MutableList<LuminanceSource>,
+    insetPercent: Int,
+) {
+    val insetX = width * insetPercent / 100
+    val insetY = height * insetPercent / 100
+    val cropWidth = width - insetX * 2
+    val cropHeight = height - insetY * 2
+    if (cropWidth > 0 && cropHeight > 0) {
+        candidates += crop(insetX, insetY, cropWidth, cropHeight)
+    }
+}
+
+private fun LuminanceSource.addCenteredSquareCropTo(candidates: MutableList<LuminanceSource>) {
+    val size = minOf(width, height)
+    if (size <= 0) return
+    candidates += crop(
+        (width - size) / 2,
+        (height - size) / 2,
+        size,
+        size,
+    )
+}
+
+private fun MultiFormatReader.decodeQrSource(source: LuminanceSource): String? =
+    runCatching {
+        reset()
+        decodeWithState(BinaryBitmap(HybridBinarizer(source))).text
+    }.getOrNull() ?: runCatching {
+        reset()
+        decodeWithState(BinaryBitmap(GlobalHistogramBinarizer(source))).text
+    }.getOrNull()

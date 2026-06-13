@@ -43,6 +43,7 @@ import com.firmmy.dashcam.core.network.EmbeddedHttpServer
 import com.firmmy.dashcam.core.network.HotspotController
 import com.firmmy.dashcam.core.network.HotspotState
 import com.firmmy.dashcam.core.network.RemoteConnectionPayload
+import com.firmmy.dashcam.core.network.RemoteViewerClientInfo
 import com.firmmy.dashcam.feature.recorder.MediaBrowserItem
 import com.firmmy.dashcam.feature.recorder.MediaBrowserScreen
 import com.firmmy.dashcam.feature.settings.SettingsInitialSection
@@ -212,6 +213,7 @@ data class RecorderHotspotUiState(
     val remoteServerUrl: String = "",
     val remoteQrText: String = "",
     val error: String = "",
+    val remoteViewers: List<RemoteViewerClientInfo> = emptyList(),
 )
 
 @Composable
@@ -334,6 +336,15 @@ private fun HomeScreen(
                 remoteQrText = "",
                 error = currentHotspotState.message,
             )
+        }
+    }
+
+    LaunchedEffect(remoteServerController) {
+        while (true) {
+            recorderHotspot = recorderHotspot.copy(
+                remoteViewers = remoteServerController.activeRemoteViewers(),
+            )
+            kotlinx.coroutines.delay(1_000L)
         }
     }
 

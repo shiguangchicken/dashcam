@@ -10,6 +10,7 @@ import com.firmmy.dashcam.core.media.DashCamMediaDirectories
 import com.firmmy.dashcam.core.media.DashCamMediaRepository
 import com.firmmy.dashcam.core.network.AndroidNsdRemoteServiceAdvertiser
 import com.firmmy.dashcam.core.network.EmbeddedHttpServer
+import com.firmmy.dashcam.core.network.RemoteViewerClientInfo
 
 class AppRemoteServerController(
     context: Context,
@@ -52,4 +53,7 @@ class AppRemoteServerController(
         server?.stop()
         server = null
     }
+
+    fun activeRemoteViewers(): List<RemoteViewerClientInfo> =
+        server?.activeRemoteViewers().orEmpty()
 }

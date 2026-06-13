@@ -13,6 +13,7 @@ import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.request.header
 import io.ktor.server.request.receiveText
+import io.ktor.server.request.userAgent
 import io.ktor.server.response.header
 import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondFile
@@ -29,6 +30,7 @@ import io.ktor.websocket.send
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
+import java.util.concurrent.ConcurrentHashMap
 
 class EmbeddedHttpServer(
     private val dataSource: DashCamRemoteDataSource,
@@ -38,6 +40,7 @@ class EmbeddedHttpServer(
     private val port: Int = DEFAULT_PORT,
 ) {
     private var engine: EmbeddedServer<*, *>? = null
+    private val viewerTracker = RemoteViewerTracker()
 
     fun start(wait: Boolean = false) {
         if (engine != null) return
@@ -57,13 +60,17 @@ class EmbeddedHttpServer(
 
     fun events(): RemoteEventBus = eventBus
 
+    fun activeRemoteViewers(): List<RemoteViewerClientInfo> = viewerTracker.activeViewers()
+
     private fun Application.configureRoutes() {
         routing {
             get("/api/status") {
-                call.respondJson(RemoteJson.status(dataSource.status()))
+                call.trackRemoteViewer()
+                call.respondJson(RemoteJson.status(dataSource.status().withActiveViewers()))
             }
 
             post("/api/command") {
+                call.trackRemoteViewer()
                 val command = runCatching { RemoteJson.parseCommand(call.receiveText()) }.getOrNull()
                     ?: return@post call.respondJson(
                         RemoteJson.response(ok = false, message = "Invalid command"),
@@ -75,27 +82,32 @@ class EmbeddedHttpServer(
             }
 
             get("/api/media") {
+                call.trackRemoteViewer()
                 val type = call.request.queryParameters["type"]?.let(MediaType::fromStoredValue)
                 val date = call.request.queryParameters["date"]
                 call.respondJson(RemoteJson.mediaList(dataSource.listMedia(type, date)))
             }
 
             get("/api/media/{id}/thumbnail") {
+                call.trackRemoteViewer()
                 val id = call.mediaId() ?: return@get
                 call.respondAsset(dataSource.mediaThumbnail(id), inline = true)
             }
 
             get("/api/media/{id}/stream") {
+                call.trackRemoteViewer()
                 val id = call.mediaId() ?: return@get
                 call.respondAsset(dataSource.mediaStream(id), inline = true, range = true)
             }
 
             get("/api/media/{id}/download") {
+                call.trackRemoteViewer()
                 val id = call.mediaId() ?: return@get
                 call.respondAsset(dataSource.mediaDownload(id), inline = false)
             }
 
             get("/api/live.mjpeg") {
+                call.trackRemoteViewer()
                 val firstFrame = dataSource.livePreviewFrame()
                     ?: return@get call.respondJson(
                         RemoteJson.response(ok = false, message = "Live preview unavailable"),
@@ -105,6 +117,7 @@ class EmbeddedHttpServer(
             }
 
             delete("/api/media/{id}") {
+                call.trackRemoteViewer()
                 val id = call.mediaId() ?: return@delete
                 val ok = dataSource.deleteMedia(id)
                 val status = if (ok) HttpStatusCode.OK else HttpStatusCode.NotFound
@@ -112,10 +125,12 @@ class EmbeddedHttpServer(
             }
 
             get("/api/settings") {
+                call.trackRemoteViewer()
                 call.respondJson(RemoteJson.settings(dataSource.settings()))
             }
 
             put("/api/settings") {
+                call.trackRemoteViewer()
                 val settings = runCatching { RemoteJson.parseSettings(call.receiveText()) }.getOrNull()
                     ?: return@put call.respondJson(
                         RemoteJson.response(ok = false, message = "Invalid settings"),
@@ -126,13 +141,24 @@ class EmbeddedHttpServer(
             }
 
             webSocket("/ws/events") {
-                send(RemoteJson.event(RemoteEvent.StatusChanged(dataSource.status())))
+                call.trackRemoteViewer()
+                send(RemoteJson.event(RemoteEvent.StatusChanged(dataSource.status().withActiveViewers())))
                 eventBus.events.collectLatest { event ->
                     send(RemoteJson.event(event))
                 }
             }
         }
     }
+
+    private fun io.ktor.server.application.ApplicationCall.trackRemoteViewer() {
+        viewerTracker.markSeen(
+            remoteHost = request.local.remoteHost,
+            userAgent = request.userAgent(),
+        )
+    }
+
+    private fun RemoteStatus.withActiveViewers(): RemoteStatus =
+        copy(remoteViewers = viewerTracker.activeViewers())
 
     private suspend fun io.ktor.server.application.ApplicationCall.respondAsset(
         asset: RemoteMediaAsset?,
@@ -239,5 +265,40 @@ class EmbeddedHttpServer(
         const val DEFAULT_PORT = 8080
         private const val MJPEG_BOUNDARY = "dashcam-frame"
         private const val MJPEG_FRAME_INTERVAL_MS = 200L
+    }
+}
+
+private class RemoteViewerTracker(
+    private val clock: () -> Long = { System.currentTimeMillis() },
+) {
+    private val viewers = ConcurrentHashMap<String, RemoteViewerClientInfo>()
+
+    fun markSeen(
+        remoteHost: String,
+        userAgent: String?,
+    ) {
+        val now = clock()
+        expire(now)
+        viewers[remoteHost] = RemoteViewerClientInfo(
+            id = remoteHost,
+            name = userAgent?.takeIf { it.isNotBlank() }?.substringBefore(" ") ?: "Remote viewer",
+            lastSeenEpochMillis = now,
+        )
+    }
+
+    fun activeViewers(): List<RemoteViewerClientInfo> {
+        val now = clock()
+        expire(now)
+        return viewers.values.sortedByDescending { it.lastSeenEpochMillis }
+    }
+
+    private fun expire(now: Long) {
+        viewers.entries.removeIf { (_, viewer) ->
+            now - viewer.lastSeenEpochMillis > VIEWER_TTL_MS
+        }
+    }
+
+    companion object {
+        private const val VIEWER_TTL_MS = 30_000L
     }
 }

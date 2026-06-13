@@ -4,6 +4,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.MediaController
 import android.widget.VideoView
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -48,7 +49,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -66,6 +69,7 @@ import com.firmmy.dashcam.core.network.RemoteStatus
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 interface RemoteViewerClient {
@@ -166,6 +170,13 @@ fun RemoteViewerScreen(
         if (state.connected) refresh()
     }
 
+    LaunchedEffect(state.connected) {
+        while (state.connected) {
+            delay(1_000L)
+            refresh()
+        }
+    }
+
     LaunchedEffect(autoConnect, initialManualHost) {
         if (!autoConnect || autoConnectAttempted || initialManualHost.isBlank()) return@LaunchedEffect
         autoConnectAttempted = true
@@ -252,6 +263,17 @@ fun RemoteViewerContent(
                 state = state,
                 onHostChanged = onHostChanged,
                 onConnectClick = onConnectClick,
+            )
+            return@Box
+        }
+
+        if (state.destination == RemoteDestination.Live) {
+            RemoteLiveDashboard(
+                state = state,
+                onCommand = onCommand,
+                selected = state.destination,
+                onDestinationSelected = onDestinationSelected,
+                liveStreamUrl = liveStreamUrl(),
             )
             return@Box
         }
@@ -397,6 +419,118 @@ private fun RemoteTopBar(
             )
         }
     }
+}
+
+@Composable
+private fun RemoteLiveDashboard(
+    state: RemoteViewerUiState,
+    onCommand: (DashCamCommand) -> Unit,
+    selected: RemoteDestination,
+    onDestinationSelected: (RemoteDestination) -> Unit,
+    liveStreamUrl: String,
+) {
+    val recording = state.status.recordingStatus != RecordingStatus.IDLE
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag("remote_home_screen"),
+    ) {
+        RemoteLiveBackground(
+            recording = recording,
+            liveStreamAvailable = state.status.liveStreamAvailable,
+            liveStreamUrl = liveStreamUrl,
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp)
+                .padding(top = 16.dp, bottom = 92.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
+            RemoteTopBar(
+                status = state.status,
+                modifier = Modifier.testTag("remote_status_screen"),
+            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = if (recording) "59" else "0",
+                    style = MaterialTheme.typography.displayLarge,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                )
+                Text("KM/H", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+                StatusPill(state.status.recordingStatus.label.uppercase())
+            }
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                RemoteControlPanel(
+                    audioEnabled = state.status.audioEnabled,
+                    onCommand = onCommand,
+                )
+                ConnectedPanel(
+                    status = state.status,
+                    onRefreshClick = {},
+                )
+            }
+        }
+        RemoteBottomNav(
+            selected = selected,
+            onDestinationSelected = onDestinationSelected,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
+    }
+}
+
+@Composable
+private fun RemoteLiveBackground(
+    recording: Boolean,
+    liveStreamAvailable: Boolean,
+    liveStreamUrl: String,
+) {
+    if (recording && liveStreamAvailable && liveStreamUrl.isNotBlank()) {
+        AndroidView(
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("remote_live_stream_background"),
+            factory = { context ->
+                WebView(context).apply {
+                    setBackgroundColor(android.graphics.Color.BLACK)
+                    webViewClient = WebViewClient()
+                    settings.loadWithOverviewMode = true
+                    settings.useWideViewPort = true
+                }
+            },
+            update = { view ->
+                if (view.tag != liveStreamUrl) {
+                    view.tag = liveStreamUrl
+                    view.loadUrl(liveStreamUrl)
+                }
+            },
+            onRelease = { view ->
+                view.stopLoading()
+                view.destroy()
+            },
+        )
+    } else {
+        Image(
+            painter = painterResource(id = R.drawable.recorder_idle_background),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("remote_idle_background"),
+            contentScale = ContentScale.Crop,
+        )
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0x6610141A)),
+    )
 }
 
 @Composable
@@ -1222,9 +1356,10 @@ private fun SettingMetric(
 private fun RemoteBottomNav(
     selected: RemoteDestination,
     onDestinationSelected: (RemoteDestination) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(88.dp)
             .background(Color(0xEE10141A))

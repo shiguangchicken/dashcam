@@ -1,5 +1,6 @@
 package com.firmmy.dashcam.feature.recorder
 
+import android.graphics.Bitmap
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -12,6 +13,9 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import com.firmmy.dashcam.core.common.MediaType
 import com.firmmy.dashcam.core.common.RecordingMode
+import com.firmmy.dashcam.core.common.RecordingStatus
+import com.firmmy.dashcam.core.network.RemoteViewerClientInfo
+import java.io.ByteArrayOutputStream
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -43,6 +47,61 @@ class RecorderScreenComposeTest {
             composeRule.onNodeWithTag(tag).assertExists()
         }
         composeRule.onAllNodesWithTag("hotspot_qr_code").assertCountEquals(0)
+    }
+
+    @Test
+    fun recorderDashboardUsesIdleAndLiveBackgrounds() {
+        var state by mutableStateOf(RecorderUiState(recordingStatus = RecordingStatus.IDLE))
+        composeRule.setContent {
+            MaterialTheme {
+                RecorderScreen(
+                    state = state,
+                    onStartStopClick = {},
+                    onDrivingModeClick = {},
+                    onParkingModeClick = {},
+                    onTakePhotoClick = {},
+                    onAudioToggleClick = {},
+                    onHotspotToggleClick = {},
+                    onViewFilesClick = {},
+                    onSettingsClick = {},
+                )
+            }
+        }
+        composeRule.onNodeWithTag("recorder_idle_background").assertExists()
+
+        state = RecorderUiState(
+            recordingStatus = RecordingStatus.RECORDING_DRIVING,
+            livePreviewFrame = testJpegBytes(),
+        )
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("recorder_live_background").assertExists()
+    }
+
+    @Test
+    fun recorderDashboardShowsActiveRemoteViewersWhenPresent() {
+        composeRule.setContent {
+            MaterialTheme {
+                RecorderScreen(
+                    state = RecorderUiState(
+                        remoteViewers = listOf(
+                            RemoteViewerClientInfo("127.0.0.1", "Pixel 7", 1_780_000_000_000L),
+                        ),
+                    ),
+                    onStartStopClick = {},
+                    onDrivingModeClick = {},
+                    onParkingModeClick = {},
+                    onTakePhotoClick = {},
+                    onAudioToggleClick = {},
+                    onHotspotToggleClick = {},
+                    onViewFilesClick = {},
+                    onSettingsClick = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("active_remote_viewers_panel").assertExists()
+        composeRule.onNodeWithTag("active_remote_viewer_count").assertExists()
+        composeRule.onNodeWithTag("active_remote_viewer_0").assertExists()
     }
 
     @Test
@@ -80,7 +139,7 @@ class RecorderScreenComposeTest {
             }
         }
 
-        composeRule.onNodeWithTag("hotspot_toggle_button").performScrollTo().performClick()
+        composeRule.onNodeWithTag("hotspot_toggle_button").performClick()
         composeRule.runOnIdle {
             assertTrue(openedSettings)
         }
@@ -121,4 +180,12 @@ class RecorderScreenComposeTest {
                 sizeBytes = 512L,
             ),
         )
+
+    private fun testJpegBytes(): ByteArray {
+        val bitmap = Bitmap.createBitmap(4, 4, Bitmap.Config.ARGB_8888)
+        return ByteArrayOutputStream().use { output ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, output)
+            output.toByteArray()
+        }
+    }
 }

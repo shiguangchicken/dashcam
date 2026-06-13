@@ -1,5 +1,7 @@
 package com.firmmy.dashcam.feature.recorder
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -27,6 +29,7 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -43,6 +46,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -54,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import com.firmmy.dashcam.core.common.DashCamFormatters
 import com.firmmy.dashcam.core.common.RecordingMode
 import com.firmmy.dashcam.core.common.RecordingStatus
+import com.firmmy.dashcam.core.network.RemoteViewerClientInfo
 
 data class RecorderUiState(
     val mode: RecordingMode = RecordingMode.DRIVING,
@@ -71,6 +78,8 @@ data class RecorderUiState(
     val hotspotError: String = "",
     val voiceStatus: String = "Off",
     val photoCount: Int = 0,
+    val livePreviewFrame: ByteArray? = null,
+    val remoteViewers: List<RemoteViewerClientInfo> = emptyList(),
 )
 
 @Composable
@@ -154,37 +163,56 @@ fun RecorderScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFF10141A), Color(0xFF0A0E14), Color(0xFF05080B)),
-                ),
-            )
+            .background(Color(0xFF10141A))
             .testTag("recorder_dashboard"),
     ) {
+        RecorderBackground(
+            recording = recording,
+            livePreviewFrame = state.livePreviewFrame,
+        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp)
-                .padding(top = 16.dp, bottom = 96.dp)
-                .verticalScroll(rememberScrollState()),
+                .padding(horizontal = 24.dp)
+                .padding(top = 16.dp, bottom = 92.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(18.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            DroidDashTopBar(state)
-            RecorderTelemetryRow(state)
-            CameraPreviewHud(recording)
-            RecordingTimer(state)
-            VoiceHint(state.voiceStatus)
-            RecorderControls(
-                state = state,
-                recording = recording,
-                onStartStopClick = onStartStopClick,
-                onTakePhotoClick = onTakePhotoClick,
-                onAudioToggleClick = onAudioToggleClick,
-                onHotspotToggleClick = onHotspotToggleClick,
-                onSettingsClick = onSettingsClick,
-            )
-            Spacer(Modifier.height(12.dp))
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+            ) {
+                DroidDashTopBar(state)
+                RecorderTelemetryRow(state)
+            }
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                RecordingTimer(state)
+            }
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                VoiceHint(state.voiceStatus)
+                RecorderControls(
+                    state = state,
+                    recording = recording,
+                    onStartStopClick = onStartStopClick,
+                    onTakePhotoClick = onTakePhotoClick,
+                    onAudioToggleClick = onAudioToggleClick,
+                    onHotspotToggleClick = onHotspotToggleClick,
+                    onSettingsClick = onSettingsClick,
+                )
+                if (state.remoteViewers.isNotEmpty()) {
+                    ActiveRemoteViewersPanel(
+                        viewers = state.remoteViewers,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
         }
         RecorderBottomNav(
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -217,6 +245,40 @@ fun FakeRecorderScreen(
 }
 
 @Composable
+private fun RecorderBackground(
+    recording: Boolean,
+    livePreviewFrame: ByteArray?,
+) {
+    val bitmap = remember(livePreviewFrame) {
+        livePreviewFrame?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+    }
+    if (recording && bitmap != null) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("recorder_live_background"),
+            contentScale = ContentScale.Crop,
+        )
+    } else {
+        Image(
+            painter = painterResource(id = R.drawable.recorder_idle_background),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("recorder_idle_background"),
+            contentScale = ContentScale.Crop,
+        )
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0x6610141A)),
+    )
+}
+
+@Composable
 private fun DroidDashTopBar(state: RecorderUiState) {
     GlassPanel(
         modifier = Modifier.fillMaxWidth(),
@@ -242,6 +304,9 @@ private fun DroidDashTopBar(state: RecorderUiState) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 HudChip("${state.temperatureCelsius.toInt()} C", CyberBlue)
                 HudChip(if (state.batteryPercent > 20) "Charging" else "Battery low", SignalGreen)
+                if (state.remoteViewers.isNotEmpty()) {
+                    HudChip("${state.remoteViewers.size} Clients", SafetyOrange)
+                }
             }
         }
     }
@@ -451,6 +516,58 @@ private fun RecorderBottomNav(
             tag = "recorder_settings_button",
             onClick = onSettingsClick,
         )
+    }
+}
+
+@Composable
+private fun ActiveRemoteViewersPanel(
+    viewers: List<RemoteViewerClientInfo>,
+    modifier: Modifier = Modifier,
+) {
+    GlassPanel(
+        modifier = modifier.testTag("active_remote_viewers_panel"),
+        padding = PaddingValues(16.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Filled.Groups, contentDescription = null, tint = SafetyOrange, modifier = Modifier.size(18.dp))
+                Text("Active Remote Viewers", color = Foreground, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            }
+            Text(
+                modifier = Modifier.testTag("active_remote_viewer_count"),
+                text = "${viewers.size} Active",
+                color = SafetyOrange,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        viewers.take(3).forEachIndexed { index, viewer ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("active_remote_viewer_$index"),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column {
+                    Text(viewer.name, color = Foreground, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    Text("Connected", color = MutedText.copy(alpha = 0.72f), fontSize = 10.sp)
+                }
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(SignalGreen),
+                )
+            }
+        }
     }
 }
 

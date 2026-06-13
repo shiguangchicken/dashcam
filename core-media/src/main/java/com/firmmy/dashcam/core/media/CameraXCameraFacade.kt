@@ -3,9 +3,15 @@ package com.firmmy.dashcam.core.media
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.ImageFormat
+import android.graphics.Rect
+import android.graphics.YuvImage
+import android.util.Size
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.ImageProxy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FallbackStrategy
 import androidx.camera.video.FileOutputOptions
@@ -20,10 +26,13 @@ import androidx.lifecycle.LifecycleOwner
 import com.firmmy.dashcam.core.common.DashCamError
 import com.firmmy.dashcam.core.common.DashCamResult
 import com.firmmy.dashcam.core.common.RecordingMode
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.time.Instant
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -33,14 +42,18 @@ class CameraXCameraFacade(
     private val lifecycleOwner: LifecycleOwner,
     private val executor: Executor = Executors.newSingleThreadExecutor(),
     private val clock: () -> Instant = { Instant.now() },
+    private val onPreviewFrame: (ByteArray) -> Unit = {},
 ) : CameraRecordingFacade {
     private var cameraProvider: ProcessCameraProvider? = null
     private var videoCapture: VideoCapture<Recorder>? = null
     private var imageCapture: ImageCapture? = null
+    private var imageAnalysis: ImageAnalysis? = null
     private var recording: Recording? = null
     private var activeFile: File? = null
     private var activeStartedAt: Instant? = null
     private var finalizeContinuation: Continuation<DashCamResult<CompletedCameraRecording>>? = null
+    private val lastPreviewFrameAt = AtomicLong(0L)
+    private val lastPreviewJpeg = AtomicReference<ByteArray?>(null)
 
     override suspend fun startRecording(
         outputFile: File,
@@ -66,14 +79,20 @@ class CameraXCameraFacade(
                 .setTargetVideoEncodingBitRate(profile.bitrateKbps * 1_000)
                 .build()
             val capture = VideoCapture.withOutput(recorder)
-            val image = imageCapture ?: ImageCapture.Builder()
-                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+            val analysis = ImageAnalysis.Builder()
+                .setTargetResolution(Size(PREVIEW_WIDTH, PREVIEW_HEIGHT))
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
+                .also { analyzer ->
+                    analyzer.setAnalyzer(executor) { imageProxy ->
+                        analyzePreviewFrame(imageProxy)
+                    }
+                }
 
             provider.unbindAll()
-            provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, capture, image)
+            bindRecordingUseCases(provider, capture, analysis)
             videoCapture = capture
-            imageCapture = image
+            imageCapture = null
 
             val pendingRecording = recorder.prepareRecording(context, FileOutputOptions.Builder(outputFile).build())
                 .withAudioIfNeeded(profile.audioEnabled)
@@ -109,6 +128,9 @@ class CameraXCameraFacade(
         outputFile: File,
         mode: RecordingMode,
     ): DashCamResult<CompletedCameraPhoto> {
+        if (recording != null) {
+            return saveCurrentPreviewFrame(outputFile)
+        }
         if (context.checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             return DashCamResult.Failure(DashCamError.PermissionDenied(Manifest.permission.CAMERA))
         }
@@ -150,8 +172,41 @@ class CameraXCameraFacade(
         }
     }
 
+    private fun saveCurrentPreviewFrame(outputFile: File): DashCamResult<CompletedCameraPhoto> {
+        val frame = lastPreviewJpeg.get()
+            ?: return DashCamResult.Failure(
+                DashCamError.InvalidState("recording", "No live preview frame is available for photo capture"),
+            )
+        return runCatching {
+            outputFile.writeBytes(frame)
+            CompletedCameraPhoto(
+                file = outputFile,
+                createdAt = clock(),
+                resolution = DashCamResolution(width = PREVIEW_WIDTH, height = PREVIEW_HEIGHT),
+            )
+        }.fold(
+            onSuccess = { DashCamResult.Success(it) },
+            onFailure = { DashCamResult.Failure(DashCamError.StorageUnavailable(it.message ?: "Photo path is not writable")) },
+        )
+    }
+
     private fun obtainCameraProvider(): ProcessCameraProvider =
         cameraProvider ?: ProcessCameraProvider.getInstance(context).get().also { cameraProvider = it }
+
+    private fun bindRecordingUseCases(
+        provider: ProcessCameraProvider,
+        capture: VideoCapture<Recorder>,
+        analysis: ImageAnalysis,
+    ) {
+        runCatching {
+            provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, capture, analysis)
+            imageAnalysis = analysis
+        }.getOrElse {
+            provider.unbindAll()
+            provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, capture)
+            imageAnalysis = null
+        }
+    }
 
     private fun ensureImageCapture(): ImageCapture {
         imageCapture?.let { return it }
@@ -189,6 +244,54 @@ class CameraXCameraFacade(
         continuation?.resume(result)
     }
 
+    private fun analyzePreviewFrame(imageProxy: ImageProxy) {
+        try {
+            val now = System.currentTimeMillis()
+            if (now - lastPreviewFrameAt.get() < PREVIEW_FRAME_INTERVAL_MS) return
+            lastPreviewFrameAt.set(now)
+            runCatching {
+                imageProxy.toJpegBytes(PREVIEW_JPEG_QUALITY)?.let { frame ->
+                    lastPreviewJpeg.set(frame)
+                    onPreviewFrame(frame)
+                }
+            }
+        } finally {
+            imageProxy.close()
+        }
+    }
+
+    private fun ImageProxy.toJpegBytes(quality: Int): ByteArray? {
+        if (format != ImageFormat.YUV_420_888 || planes.size < 3) return null
+        val nv21 = toNv21()
+        return ByteArrayOutputStream().use { output ->
+            YuvImage(nv21, ImageFormat.NV21, width, height, null)
+                .compressToJpeg(Rect(0, 0, width, height), quality, output)
+            output.toByteArray()
+        }
+    }
+
+    private fun ImageProxy.toNv21(): ByteArray {
+        val bytes = ByteArray(width * height * 3 / 2)
+        val yPlane = planes[0]
+        val uPlane = planes[1]
+        val vPlane = planes[2]
+        var outputOffset = 0
+
+        for (row in 0 until height) {
+            for (col in 0 until width) {
+                bytes[outputOffset++] = yPlane.buffer.get(row * yPlane.rowStride + col * yPlane.pixelStride)
+            }
+        }
+
+        for (row in 0 until height / 2) {
+            for (col in 0 until width / 2) {
+                bytes[outputOffset++] = vPlane.buffer.get(row * vPlane.rowStride + col * vPlane.pixelStride)
+                bytes[outputOffset++] = uPlane.buffer.get(row * uPlane.rowStride + col * uPlane.pixelStride)
+            }
+        }
+        return bytes
+    }
+
     private fun VideoRecordEvent.Finalize.toDashCamFailure(): DashCamResult.Failure =
         when (error) {
             VideoRecordEvent.Finalize.ERROR_ENCODING_FAILED,
@@ -221,4 +324,11 @@ class CameraXCameraFacade(
         } else {
             this
         }
+
+    companion object {
+        private const val PREVIEW_WIDTH = 320
+        private const val PREVIEW_HEIGHT = 180
+        private const val PREVIEW_FRAME_INTERVAL_MS = 200L
+        private const val PREVIEW_JPEG_QUALITY = 55
+    }
 }

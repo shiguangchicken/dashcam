@@ -19,6 +19,17 @@ object RemoteJson {
             .putNullable("batteryPercent", value.batteryPercent)
             .putNullable("temperatureCelsius", value.temperatureCelsius)
             .put("liveStreamAvailable", value.liveStreamAvailable)
+            .put(
+                "remoteViewers",
+                JSONArray(
+                    value.remoteViewers.map { viewer ->
+                        JSONObject()
+                            .put("id", viewer.id)
+                            .put("name", viewer.name)
+                            .put("lastSeenEpochMillis", viewer.lastSeenEpochMillis)
+                    },
+                ),
+            )
             .toString()
 
     fun mediaList(items: List<RemoteMediaItem>): String =
@@ -98,6 +109,16 @@ object RemoteJson {
             batteryPercent = json.nullableInt("batteryPercent"),
             temperatureCelsius = json.nullableDouble("temperatureCelsius")?.toFloat(),
             liveStreamAvailable = json.optBoolean("liveStreamAvailable", false),
+            remoteViewers = json.optJSONArray("remoteViewers")?.let { array ->
+                List(array.length()) { index ->
+                    val viewer = array.getJSONObject(index)
+                    RemoteViewerClientInfo(
+                        id = viewer.getString("id"),
+                        name = viewer.optString("name", "Remote viewer"),
+                        lastSeenEpochMillis = viewer.optLong("lastSeenEpochMillis", 0L),
+                    )
+                }
+            }.orEmpty(),
         )
     }
 

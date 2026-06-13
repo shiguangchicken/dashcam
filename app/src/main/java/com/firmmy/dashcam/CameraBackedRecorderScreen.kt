@@ -83,13 +83,14 @@ fun CameraBackedRecorderScreen(
                 audioEnabled = runtimeStatus.audioEnabled,
                 remainingStorageBytes = runtimeStatus.freeSpaceBytes.takeIf { it > 0L }
                     ?: state.remainingStorageBytes,
+                livePreviewFrame = RecorderRuntimeState.livePreviewFrame(),
                 currentSegmentMillis = if (runtimeRecordingStatus == RecordingStatus.IDLE) {
                     0L
                 } else {
                     state.currentSegmentMillis
                 },
             )
-            delay(1_000L)
+            delay(250L)
         }
     }
 
@@ -102,6 +103,7 @@ fun CameraBackedRecorderScreen(
             remoteServerUrl = hotspot.remoteServerUrl,
             remoteQrText = hotspot.remoteQrText,
             hotspotError = hotspot.error,
+            remoteViewers = hotspot.remoteViewers,
         ),
         onStartStopClick = {
             if (state.recordingStatus == RecordingStatus.IDLE) {

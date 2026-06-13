@@ -57,6 +57,15 @@ class EmbeddedHttpServerTest {
     }
 
     @Test
+    fun statusIncludesActiveRemoteViewer() = runBlocking {
+        server.start()
+
+        val status = getPath("/api/status").bodyAsText()
+
+        assertEquals(1, RemoteJson.parseStatus(status).remoteViewers.size)
+    }
+
+    @Test
     fun servesStatusMediaRangeAndSettings() = runBlocking {
         server.start()
 

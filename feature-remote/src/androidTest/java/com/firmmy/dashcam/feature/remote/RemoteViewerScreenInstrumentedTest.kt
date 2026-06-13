@@ -80,7 +80,7 @@ class RemoteViewerScreenInstrumentedTest {
         composeRule.waitUntil(timeoutMillis = 5_000L) {
             client.connectedHosts.contains("192.168.62.74") && client.mediaCalls >= 2
         }
-        composeRule.onNodeWithTag("remote_take_photo_button").performScrollTo().performClick()
+        composeRule.onNodeWithTag("remote_take_photo_button").performClick()
 
         composeRule.waitUntil(timeoutMillis = 5_000L) {
             client.commands.contains(DashCamCommand.TakePhoto)
@@ -130,6 +130,38 @@ class RemoteViewerScreenInstrumentedTest {
         composeRule.onNodeWithTag("remote_save_settings_button").performScrollTo().performClick()
 
         assertEquals("new wake", savedSettings?.wakeWord)
+    }
+
+    @Test
+    fun remoteLiveDashboardSwitchesBetweenIdleImageAndStreamBackground() {
+        var state by mutableStateOf(
+            RemoteViewerUiState(
+                connected = true,
+                status = RemoteStatus(recordingStatus = RecordingStatus.IDLE),
+                destination = RemoteDestination.Live,
+            ),
+        )
+
+        composeRule.setContent {
+            MaterialTheme {
+                RemoteViewerContent(
+                    state = state,
+                    liveStreamUrl = { "http://127.0.0.1:8080/api/live.mjpeg" },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("remote_idle_background").assertExists()
+
+        state = state.copy(
+            status = state.status.copy(
+                recordingStatus = RecordingStatus.RECORDING_DRIVING,
+                liveStreamAvailable = true,
+            ),
+        )
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("remote_live_stream_background").assertExists()
     }
 
     private class FakeRemoteViewerClient : RemoteViewerClient {

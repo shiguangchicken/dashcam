@@ -16,6 +16,13 @@ data class RemoteStatus(
     val batteryPercent: Int? = null,
     val temperatureCelsius: Float? = null,
     val liveStreamAvailable: Boolean = false,
+    val remoteViewers: List<RemoteViewerClientInfo> = emptyList(),
+)
+
+data class RemoteViewerClientInfo(
+    val id: String,
+    val name: String,
+    val lastSeenEpochMillis: Long,
 )
 
 data class RemoteMediaItem(

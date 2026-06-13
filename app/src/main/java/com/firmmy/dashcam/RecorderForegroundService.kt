@@ -203,6 +203,7 @@ class RecorderForegroundService : Service(), LifecycleOwner {
             cameraFacade = CameraXCameraFacade(
                 context = applicationContext,
                 lifecycleOwner = this,
+                onPreviewFrame = RecorderRuntimeState::updateLivePreviewFrame,
             ),
         )
         return RecorderServiceDependencies(

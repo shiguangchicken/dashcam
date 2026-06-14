@@ -53,6 +53,7 @@ object RecorderRuntimeState {
 
     fun clearLivePreviewFrame() {
         val current = status.get()
+        h264LiveStream.reset()
         status.set(current.copy(liveStreamAvailable = isLiveStreamAvailable(current.recordingStatus)))
     }
 

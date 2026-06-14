@@ -3,6 +3,7 @@ package com.firmmy.dashcam
 import android.content.Context
 import androidx.core.content.ContextCompat
 import com.firmmy.dashcam.core.common.DashCamCommand
+import com.firmmy.dashcam.core.common.DashCamLog
 import com.firmmy.dashcam.core.common.MediaType
 import com.firmmy.dashcam.core.common.RecordingMode
 import com.firmmy.dashcam.core.common.RecordingStatus
@@ -33,6 +34,7 @@ class AppRemoteDataSource(
     private val zoneId: ZoneId = ZoneId.systemDefault(),
 ) : DashCamRemoteDataSource {
     override suspend fun status(): RemoteStatus {
+        val startedAt = System.currentTimeMillis()
         val settings = settingsRepository.getSettings()
         val root = directories.ensureBaseDirectories().root
         val runtimeStatus = RecorderRuntimeState.status()
@@ -43,19 +45,32 @@ class AppRemoteDataSource(
             freeSpaceBytes = root.usableSpace,
             liveStreamAvailable = runtimeStatus.recordingStatus != RecordingStatus.IDLE &&
                 RecorderRuntimeState.liveH264Stream().available,
-        )
+        ).also {
+            DashCamLog.debug(
+                REMOTE_API_LOG_TAG,
+                "status took ${System.currentTimeMillis() - startedAt}ms " +
+                    "recording=${it.recordingStatus} live=${it.liveStreamAvailable}",
+            )
+        }
     }
 
     override suspend fun listMedia(
         type: MediaType?,
         date: String?,
     ): List<RemoteMediaItem> {
+        val startedAt = System.currentTimeMillis()
         val dayRange = date?.toEpochRange()
         return mediaRepository.observeFilteredMedia(
             type = type,
             startCreatedAt = dayRange?.first,
             endCreatedAt = dayRange?.second,
-        ).first().mapNotNull(MediaFileEntity::toRemoteMediaItem)
+        ).first().mapNotNull(MediaFileEntity::toRemoteMediaItem).also { items ->
+            DashCamLog.info(
+                REMOTE_API_LOG_TAG,
+                "listMedia type=$type date=$date count=${items.size} " +
+                    "took ${System.currentTimeMillis() - startedAt}ms",
+            )
+        }
     }
 
     override suspend fun mediaThumbnail(id: Long): RemoteMediaAsset? {
@@ -82,7 +97,17 @@ class AppRemoteDataSource(
         dashCamMediaRepository.deleteMedia(id).isSuccess
 
     override suspend fun settings(): RemoteSettings =
-        settingsRepository.getSettings().toRemoteSettings()
+        timedSettings()
+
+    private suspend fun timedSettings(): RemoteSettings {
+        val startedAt = System.currentTimeMillis()
+        return settingsRepository.getSettings().toRemoteSettings().also {
+            DashCamLog.debug(
+                REMOTE_API_LOG_TAG,
+                "settings took ${System.currentTimeMillis() - startedAt}ms",
+            )
+        }
+    }
 
     override suspend fun saveSettings(settings: RemoteSettings): Boolean {
         val current = settingsRepository.getSettings()
@@ -183,3 +208,5 @@ private fun RemoteSettings.toDashCamSettings(current: DashCamSettings): DashCamS
         voiceWakeupEnabled = voiceWakeupEnabled,
         wakeWord = wakeWord,
     )
+
+private const val REMOTE_API_LOG_TAG = "RemoteApi"

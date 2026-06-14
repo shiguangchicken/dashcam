@@ -5,6 +5,7 @@ import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import com.firmmy.dashcam.core.common.DashCamLog
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -133,21 +134,34 @@ class H264LiveStream {
         }
     }
 
+    fun reset() {
+        latestConfig.set(null)
+        val activeSubscribers = subscribers.size
+        subscribers.values.forEach { channel -> channel.close() }
+        subscribers.clear()
+        DashCamLog.info(H264_STREAM_LOG_TAG, "reset live stream; closedSubscribers=$activeSubscribers")
+    }
+
     fun subscribe(): Flow<H264LiveStreamEvent> =
         callbackFlow {
             val id = nextSubscriberId.getAndIncrement()
             val channel = Channel<H264LiveStreamEvent>(Channel.CONFLATED)
             subscribers[id] = channel
+            DashCamLog.info(H264_STREAM_LOG_TAG, "subscriber added id=$id count=${subscribers.size}")
             latestConfig.get()?.let { trySend(H264LiveStreamEvent.Config(it)) }
             val forwarder = this.launch {
                 for (event in channel) {
                     send(event)
                 }
+                close()
             }
             awaitClose {
                 subscribers.remove(id)
                 channel.close()
                 forwarder.cancel()
+                DashCamLog.info(H264_STREAM_LOG_TAG, "subscriber removed id=$id count=${subscribers.size}")
             }
         }
 }
+
+private const val H264_STREAM_LOG_TAG = "H264LiveStream"

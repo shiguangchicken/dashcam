@@ -1,6 +1,7 @@
 package com.firmmy.dashcam.core.network
 
 import com.firmmy.dashcam.core.common.MediaType
+import com.firmmy.dashcam.core.common.DashCamLog
 import io.ktor.http.ContentDisposition
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -69,8 +70,10 @@ class EmbeddedHttpServer(
     private fun Application.configureRoutes() {
         routing {
             get("/api/status") {
+                val startedAt = System.currentTimeMillis()
                 call.trackRemoteViewer()
                 call.respondJson(RemoteJson.status(dataSource.status().withActiveViewers()))
+                DashCamLog.debug(REMOTE_SERVER_LOG_TAG, "GET /api/status took ${System.currentTimeMillis() - startedAt}ms")
             }
 
             post("/api/command") {
@@ -86,10 +89,15 @@ class EmbeddedHttpServer(
             }
 
             get("/api/media") {
+                val startedAt = System.currentTimeMillis()
                 call.trackRemoteViewer()
                 val type = call.request.queryParameters["type"]?.let(MediaType::fromStoredValue)
                 val date = call.request.queryParameters["date"]
                 call.respondJson(RemoteJson.mediaList(dataSource.listMedia(type, date)))
+                DashCamLog.info(
+                    REMOTE_SERVER_LOG_TAG,
+                    "GET /api/media type=$type date=$date took ${System.currentTimeMillis() - startedAt}ms",
+                )
             }
 
             get("/api/media/{id}/thumbnail") {
@@ -129,8 +137,10 @@ class EmbeddedHttpServer(
             }
 
             get("/api/settings") {
+                val startedAt = System.currentTimeMillis()
                 call.trackRemoteViewer()
                 call.respondJson(RemoteJson.settings(dataSource.settings()))
+                DashCamLog.debug(REMOTE_SERVER_LOG_TAG, "GET /api/settings took ${System.currentTimeMillis() - startedAt}ms")
             }
 
             put("/api/settings") {
@@ -279,6 +289,7 @@ class EmbeddedHttpServer(
         body: String,
         status: HttpStatusCode = HttpStatusCode.OK,
     ) {
+        response.header(HttpHeaders.Connection, "close")
         respondText(body, ContentType.Application.Json, status)
     }
 
@@ -332,3 +343,5 @@ private class RemoteViewerTracker(
         private const val VIEWER_TTL_MS = 30_000L
     }
 }
+
+private const val REMOTE_SERVER_LOG_TAG = "RemoteServer"

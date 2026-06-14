@@ -27,7 +27,9 @@ class RemoteDashCamClient(
 ) {
     suspend fun status(): DashCamResult<RemoteStatus> =
         request {
-            val response = httpClient.get(apiUrl("status"))
+            val response = httpClient.get(apiUrl("status")) {
+                closeAfterResponse()
+            }
             response.ensureSuccess()
             RemoteJson.parseStatus(response.body())
         }
@@ -36,6 +38,7 @@ class RemoteDashCamClient(
         request {
             val response = httpClient.post(apiUrl("command")) {
                 header(HttpHeaders.ContentType, "application/json")
+                closeAfterResponse()
                 setBody(RemoteJson.commandBody(command))
             }
             response.ensureSuccess()
@@ -48,6 +51,7 @@ class RemoteDashCamClient(
     ): DashCamResult<List<RemoteMediaItem>> =
         request {
             val response = httpClient.get(apiUrl("media")) {
+                closeAfterResponse()
                 type?.let { parameter("type", it.storedValue) }
                 date?.let { parameter("date", it) }
             }
@@ -57,7 +61,9 @@ class RemoteDashCamClient(
 
     suspend fun settings(): DashCamResult<RemoteSettings> =
         request {
-            val response = httpClient.get(apiUrl("settings"))
+            val response = httpClient.get(apiUrl("settings")) {
+                closeAfterResponse()
+            }
             response.ensureSuccess()
             RemoteJson.parseSettings(response.body())
         }
@@ -66,6 +72,7 @@ class RemoteDashCamClient(
         request {
             val response = httpClient.put(apiUrl("settings")) {
                 header(HttpHeaders.ContentType, "application/json")
+                closeAfterResponse()
                 setBody(RemoteJson.settings(settings))
             }
             response.ensureSuccess()
@@ -74,7 +81,9 @@ class RemoteDashCamClient(
 
     suspend fun deleteMedia(id: Long): DashCamResult<RemoteApiResponse> =
         request {
-            val response = httpClient.delete(apiUrl("media", id.toString()))
+            val response = httpClient.delete(apiUrl("media", id.toString())) {
+                closeAfterResponse()
+            }
             response.ensureSuccess()
             RemoteJson.parseResponse(response.body())
         }
@@ -120,6 +129,10 @@ class RemoteDashCamClient(
             onSuccess = { DashCamResult.Success(it) },
             onFailure = { DashCamResult.Failure(DashCamError.Unknown(it.message ?: "Remote request failed")) },
         )
+
+    private fun io.ktor.client.request.HttpRequestBuilder.closeAfterResponse() {
+        header(HttpHeaders.Connection, "close")
+    }
 
     companion object {
         fun defaultHttpClient(): HttpClient =

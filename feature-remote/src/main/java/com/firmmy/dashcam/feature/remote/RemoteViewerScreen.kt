@@ -1,5 +1,6 @@
 package com.firmmy.dashcam.feature.remote
 
+import android.util.Log
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.MediaController
@@ -72,6 +73,8 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.launch
 
 interface RemoteViewerClient {
@@ -139,20 +142,56 @@ fun RemoteViewerScreen(
     }
     var autoConnectAttempted by remember(initialManualHost, autoConnect) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val refreshMutex = remember { Mutex() }
 
-    fun refresh() {
-        scope.launch {
+    suspend fun refreshStatus() {
+        refreshMutex.withLock {
+            val startedAt = System.currentTimeMillis()
             runCatching {
+                val status = client.status()
+                state = state.copy(status = status, message = "")
+                Log.d(
+                    REMOTE_VIEWER_LOG_TAG,
+                    "status refresh took ${System.currentTimeMillis() - startedAt}ms " +
+                        "recording=${status.recordingStatus} live=${status.liveStreamAvailable}",
+                )
+            }.onFailure {
+                state = state.copy(message = it.message ?: "Remote status refresh failed")
+                Log.w(REMOTE_VIEWER_LOG_TAG, "status refresh failed", it)
+            }
+        }
+    }
+
+    suspend fun refreshFull(reason: String) {
+        refreshMutex.withLock {
+            val startedAt = System.currentTimeMillis()
+            runCatching {
+                val status = client.status()
+                val videos = client.media(MediaType.VIDEO)
+                val photos = client.media(MediaType.PHOTO)
+                val settings = client.settings()
                 state = state.copy(
-                    status = client.status(),
-                    videos = client.media(MediaType.VIDEO),
-                    photos = client.media(MediaType.PHOTO),
-                    settings = client.settings(),
+                    status = status,
+                    videos = videos,
+                    photos = photos,
+                    settings = settings,
                     message = "",
+                )
+                Log.i(
+                    REMOTE_VIEWER_LOG_TAG,
+                    "full refresh reason=$reason took ${System.currentTimeMillis() - startedAt}ms " +
+                        "videos=${videos.size} photos=${photos.size}",
                 )
             }.onFailure {
                 state = state.copy(message = it.message ?: "Remote refresh failed")
+                Log.w(REMOTE_VIEWER_LOG_TAG, "full refresh failed reason=$reason", it)
             }
+        }
+    }
+
+    fun refresh() {
+        scope.launch {
+            refreshFull("manual")
         }
     }
 
@@ -166,18 +205,32 @@ fun RemoteViewerScreen(
                 manualHost = host,
                 message = if (connected) "" else "Connection failed",
             )
-            if (connected) refresh()
+            if (connected) refreshFull("connect")
         }
     }
 
     LaunchedEffect(state.connected) {
-        if (state.connected) refresh()
+        while (state.connected) {
+            delay(
+                if (state.status.recordingStatus == RecordingStatus.IDLE) {
+                    REMOTE_IDLE_STATUS_REFRESH_MS
+                } else {
+                    REMOTE_ACTIVE_STATUS_REFRESH_MS
+                },
+            )
+            refreshStatus()
+        }
     }
 
-    LaunchedEffect(state.connected) {
-        while (state.connected) {
-            delay(1_000L)
-            refresh()
+    LaunchedEffect(state.connected, state.destination) {
+        if (!state.connected) return@LaunchedEffect
+        when (state.destination) {
+            RemoteDestination.Media,
+            RemoteDestination.Events,
+            -> refreshFull("destination-${state.destination.name}")
+
+            RemoteDestination.Settings -> refreshFull("destination-settings")
+            RemoteDestination.Live -> Unit
         }
     }
 
@@ -197,7 +250,7 @@ fun RemoteViewerScreen(
                 scope.launch {
                     if (client.deleteMedia(selectedItem.id)) {
                         state = state.copy(selectedItem = null)
-                        refresh()
+                        refreshFull("delete")
                     } else {
                         state = state.copy(message = "Delete failed")
                     }
@@ -218,7 +271,7 @@ fun RemoteViewerScreen(
             scope.launch {
                 val ok = client.send(command)
                 state = state.copy(message = if (ok) "" else "Command failed")
-                refresh()
+                refreshFull("command-$command")
             }
         },
         onTypeSelected = { state = state.copy(selectedType = it) },
@@ -232,6 +285,7 @@ fun RemoteViewerScreen(
                 val settings = state.settings ?: return@launch
                 val ok = client.saveSettings(settings)
                 state = state.copy(message = if (ok) "Settings saved" else "Settings save failed")
+                refreshFull("settings-save")
             }
         },
         liveStreamUrl = { client.liveStreamUrl() },
@@ -1731,3 +1785,6 @@ private val RemoteSurfaceHigh = Color(0xFF262A31)
 private val RemoteSafetyOrange = Color(0xFFFF6B00)
 private val RemoteCyberBlue = Color(0xFF98CBFF)
 private val RemoteSignalGreen = Color(0xFF4AE183)
+private const val REMOTE_VIEWER_LOG_TAG = "DashCamRemoteViewer"
+private const val REMOTE_ACTIVE_STATUS_REFRESH_MS = 1_000L
+private const val REMOTE_IDLE_STATUS_REFRESH_MS = 5_000L

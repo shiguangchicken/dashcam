@@ -1,6 +1,7 @@
 package com.firmmy.dashcam
 
 import android.content.Context
+import android.util.Log
 import android.util.Size
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
@@ -28,6 +29,7 @@ import com.google.zxing.PlanarYUVLuminanceSource
 import com.google.zxing.common.GlobalHistogramBinarizer
 import com.google.zxing.common.HybridBinarizer
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.atomic.AtomicBoolean
 
 @Composable
@@ -38,9 +40,14 @@ fun RemoteQrScanner(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val executor = remember { Executors.newSingleThreadExecutor() }
+    val cameraProviderRef = remember { AtomicReference<ProcessCameraProvider?>() }
 
-    DisposableEffect(Unit) {
-        onDispose { executor.shutdown() }
+    DisposableEffect(context) {
+        onDispose {
+            Log.i(QR_SCANNER_LOG_TAG, "Disposing QR scanner; unbinding CameraX and shutting down analyzer")
+            cameraProviderRef.getAndSet(null)?.unbindAll()
+            executor.shutdownNow()
+        }
     }
 
     AndroidView(
@@ -54,6 +61,7 @@ fun RemoteQrScanner(
                     lifecycleOwner = lifecycleOwner,
                     previewView = this,
                     executor = executor,
+                    cameraProviderRef = cameraProviderRef,
                     onPayloadScanned = onPayloadScanned,
                 )
             }
@@ -66,12 +74,14 @@ private fun bindQrScanner(
     lifecycleOwner: LifecycleOwner,
     previewView: PreviewView,
     executor: java.util.concurrent.Executor,
+    cameraProviderRef: AtomicReference<ProcessCameraProvider?>,
     onPayloadScanned: (RemoteConnectionPayload) -> Unit,
 ) {
     val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
     cameraProviderFuture.addListener(
         {
             val cameraProvider = cameraProviderFuture.get()
+            cameraProviderRef.set(cameraProvider)
             val foundPayload = AtomicBoolean(false)
             val reader = MultiFormatReader().apply {
                 setHints(
@@ -90,12 +100,20 @@ private fun bindQrScanner(
                 .build()
                 .also {
                     it.setAnalyzer(executor) { imageProxy ->
+                        if (foundPayload.get()) {
+                            imageProxy.close()
+                            return@setAnalyzer
+                        }
                         scanImageProxy(
                             reader = reader,
                             imageProxy = imageProxy,
                             onPayloadScanned = { payload ->
                                 if (foundPayload.compareAndSet(false, true)) {
+                                    Log.i(QR_SCANNER_LOG_TAG, "QR payload found; clearing analyzer and unbinding camera")
+                                    it.clearAnalyzer()
                                     ContextCompat.getMainExecutor(context).execute {
+                                        cameraProvider.unbindAll()
+                                        cameraProviderRef.compareAndSet(cameraProvider, null)
                                         onPayloadScanned(payload)
                                     }
                                 }
@@ -110,10 +128,13 @@ private fun bindQrScanner(
                 preview,
                 analysis,
             )
+            Log.i(QR_SCANNER_LOG_TAG, "QR scanner camera bound")
         },
         ContextCompat.getMainExecutor(context),
     )
 }
+
+private const val QR_SCANNER_LOG_TAG = "DashCamQrScanner"
 
 private fun scanImageProxy(
     reader: MultiFormatReader,

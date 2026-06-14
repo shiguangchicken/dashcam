@@ -1,12 +1,15 @@
 package com.firmmy.dashcam.feature.recorder
 
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -21,7 +24,7 @@ import org.junit.Test
 
 class RecorderScreenComposeTest {
     @get:Rule
-    val composeRule = createComposeRule()
+    val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
     fun redesignedRecorderDashboardExposesPrimaryActions() {
@@ -42,10 +45,33 @@ class RecorderScreenComposeTest {
             "recorder_settings_button",
             "recording_status_text",
             "current_mode_text",
+            "recorder_speed_hud",
         ).forEach { tag ->
             composeRule.onNodeWithTag(tag).assertExists()
         }
         composeRule.onAllNodesWithTag("hotspot_qr_code").assertCountEquals(0)
+    }
+
+    @Test
+    fun recorderDashboardShowsSpeedFromState() {
+        composeRule.setContent {
+            MaterialTheme {
+                RecorderScreen(
+                    state = RecorderUiState(speedKmh = 42),
+                    onStartStopClick = {},
+                    onDrivingModeClick = {},
+                    onParkingModeClick = {},
+                    onTakePhotoClick = {},
+                    onAudioToggleClick = {},
+                    onHotspotToggleClick = {},
+                    onViewFilesClick = {},
+                    onSettingsClick = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("recorder_speed_value").assertTextEquals("42")
+        composeRule.onNodeWithTag("recorder_speed_unit").assertTextEquals("KM/H")
     }
 
     @Test

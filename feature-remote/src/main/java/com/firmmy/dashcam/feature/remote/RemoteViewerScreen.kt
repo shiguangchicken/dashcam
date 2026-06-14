@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -57,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.firmmy.dashcam.core.common.DashCamCommand
 import com.firmmy.dashcam.core.common.DashCamFormatters
@@ -450,48 +452,337 @@ private fun RemoteLiveDashboard(
         )
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
                 .padding(horizontal = 24.dp)
-                .padding(top = 16.dp, bottom = 92.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween,
+                .padding(top = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            RemoteTopBar(
-                status = state.status,
-                modifier = Modifier.testTag("remote_status_screen"),
-            )
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = if (recording) "59" else "0",
-                    style = MaterialTheme.typography.displayLarge,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                )
-                Text("KM/H", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
-                StatusPill(state.status.recordingStatus.label.uppercase())
-            }
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                RemoteControlPanel(
-                    audioEnabled = state.status.audioEnabled,
-                    onCommand = onCommand,
-                )
-                ConnectedPanel(
-                    status = state.status,
-                    onRefreshClick = {},
-                )
-            }
+            RemoteLiveTopBar(status = state.status)
+            RemoteLiveTelemetryRow(status = state.status)
         }
+        Column(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            RemoteSpeedHud(speedKmh = state.status.speedKmh ?: 0)
+            RemoteRecordingTimer(status = state.status)
+        }
+        RemoteVoiceHint(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .offset(y = (-430).dp)
+                .padding(horizontal = 24.dp),
+        )
+        RemoteLiveControls(
+            status = state.status,
+            recording = recording,
+            onCommand = onCommand,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .offset(y = (-252).dp)
+                .padding(horizontal = 24.dp),
+        )
+        RemoteLiveViewersPanel(
+            status = state.status,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .offset(y = (-96).dp)
+                .padding(horizontal = 24.dp),
+        )
         RemoteBottomNav(
             selected = selected,
             onDestinationSelected = onDestinationSelected,
-            modifier = Modifier.align(Alignment.BottomCenter),
+            liveOverlay = true,
+            modifier = Modifier
+                .align(Alignment.BottomCenter),
         )
     }
+}
+
+@Composable
+private fun RemoteLiveTopBar(status: RemoteStatus) {
+    RemoteGlassPanel(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("remote_status_screen"),
+        padding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("CAM", color = RemoteSafetyOrange, fontWeight = FontWeight.Bold)
+                Text(
+                    text = "DroidDash",
+                    color = RemoteSafetyOrange,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Clip,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                RemoteHudChip(status.temperatureCelsius?.let { "%.0f C".format(it) } ?: "-- C", RemoteCyberBlue)
+                RemoteHudChip(if (status.hotspotEnabled) "ONLINE" else "LOCAL", RemoteSignalGreen)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RemoteLiveTelemetryRow(status: RemoteStatus) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        RemoteGlassPanel(modifier = Modifier.weight(1f)) {
+            Text("GPS SIGNAL", color = RemoteMutedText, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Text("LOCKED / 12 SAT", color = RemoteCyberBlue, fontFamily = FontFamily.Monospace, fontSize = 14.sp)
+        }
+        RemoteGlassPanel(modifier = Modifier.weight(1.2f)) {
+            Text("STORAGE", color = RemoteMutedText, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Text(
+                DashCamFormatters.formatFileSize(status.freeSpaceBytes),
+                color = RemoteForeground,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 14.sp,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RemoteSpeedHud(speedKmh: Int) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.testTag("remote_speed_hud"),
+    ) {
+        Text(
+            modifier = Modifier.testTag("remote_speed_value"),
+            text = speedKmh.coerceAtLeast(0).toString(),
+            color = Color.White,
+            fontSize = 104.sp,
+            fontWeight = FontWeight.Bold,
+            lineHeight = 104.sp,
+        )
+        Text(
+            modifier = Modifier.testTag("remote_speed_unit"),
+            text = "KM/H",
+            color = RemoteMutedText,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+        )
+    }
+}
+
+@Composable
+private fun RemoteRecordingTimer(status: RemoteStatus) {
+    val active = status.recordingStatus != RecordingStatus.IDLE
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(24.dp))
+            .background(if (active) Color(0x66300000) else RemoteSurfaceHigh)
+            .border(
+                1.dp,
+                if (active) RemoteSafetyOrange.copy(alpha = 0.35f) else Color(0x22FFFFFF),
+                RoundedCornerShape(24.dp),
+            )
+            .padding(horizontal = 22.dp, vertical = 10.dp)
+            .testTag("remote_recording_status_text"),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(11.dp)
+                .clip(CircleShape)
+                .background(if (active) RemoteSafetyOrange else RemoteMutedText),
+        )
+        Text(
+            text = status.recordingStatus.label.uppercase(),
+            color = Color.White,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold,
+            fontSize = 20.sp,
+        )
+    }
+}
+
+@Composable
+private fun RemoteVoiceHint(
+    modifier: Modifier = Modifier,
+) {
+    RemoteGlassPanel(
+        modifier = modifier.fillMaxWidth(),
+        padding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        Text(
+            text = "Say \"Take Photo\" to capture",
+            color = RemoteMutedText,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+private fun RemoteLiveControls(
+    status: RemoteStatus,
+    recording: Boolean,
+    onCommand: (DashCamCommand) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RemoteRoundControl("CAM", "remote_take_photo_button") {
+            onCommand(DashCamCommand.TakePhoto)
+        }
+        RemoteRoundControl(if (status.audioEnabled) "MIC" else "MUTE", "remote_audio_toggle_button") {
+            onCommand(if (status.audioEnabled) DashCamCommand.DisableAudio else DashCamCommand.EnableAudio)
+        }
+        Button(
+            modifier = Modifier
+                .size(96.dp)
+                .testTag("remote_record_button"),
+            shape = CircleShape,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = RemoteSafetyOrange,
+                contentColor = Color(0xFF351000),
+            ),
+            onClick = {
+                onCommand(if (recording) DashCamCommand.StopRecording else DashCamCommand.StartDrivingMode)
+            },
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(if (recording) "STOP" else "REC", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(if (recording) "ACTIVE" else "READY", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        RemoteRoundControl("LOCK", "remote_lock_clip_button") {
+            onCommand(DashCamCommand.LockCurrentClip)
+        }
+        RemoteRoundControl(if (status.hotspotEnabled) "LINK" else "WIFI", "remote_hotspot_on_button") {
+            onCommand(if (status.hotspotEnabled) DashCamCommand.StopHotspot else DashCamCommand.StartHotspot)
+        }
+    }
+}
+
+@Composable
+private fun RemoteLiveViewersPanel(
+    status: RemoteStatus,
+    modifier: Modifier = Modifier,
+) {
+    RemoteGlassPanel(
+        modifier = modifier,
+        padding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("REMOTE", color = RemoteSafetyOrange, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                Text("Active Remote Viewers", color = RemoteForeground, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            }
+            Text(
+                text = status.remoteViewers.size.takeIf { it > 0 }?.let { "$it Active" } ?: "Connected",
+                color = RemoteSafetyOrange,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        val primaryViewer = status.remoteViewers.firstOrNull()
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column {
+                Text(primaryViewer?.name ?: "Remote viewer", color = RemoteForeground, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Text(status.mode.label, color = RemoteMutedText.copy(alpha = 0.72f), fontSize = 10.sp)
+            }
+            Text(
+                text = if (status.audioEnabled) "Audio On" else "Audio Off",
+                color = RemoteMutedText,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RemoteRoundControl(
+    label: String,
+    tag: String,
+    onClick: () -> Unit,
+) {
+    OutlinedButton(
+        modifier = Modifier
+            .size(58.dp)
+            .testTag(tag),
+        shape = CircleShape,
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33FFFFFF)),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = RemoteForeground),
+        onClick = onClick,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+    ) {
+        Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun RemoteGlassPanel(
+    modifier: Modifier = Modifier,
+    padding: androidx.compose.foundation.layout.PaddingValues = androidx.compose.foundation.layout.PaddingValues(14.dp),
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0x77181C22))
+            .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(8.dp))
+            .padding(padding),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        content = content,
+    )
+}
+
+@Composable
+private fun RemoteHudChip(
+    text: String,
+    color: Color,
+) {
+    Text(
+        text = text,
+        modifier = Modifier
+            .clip(RoundedCornerShape(18.dp))
+            .background(RemoteSurfaceHigh)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        color = color,
+        fontSize = 12.sp,
+        fontFamily = FontFamily.Monospace,
+    )
 }
 
 @Composable
@@ -752,13 +1043,17 @@ private fun CommandButton(
 private fun ConnectedPanel(
     status: RemoteStatus,
     onRefreshClick: () -> Unit,
+    liveOverlay: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
+    val background = if (liveOverlay) Color(0x33181C22) else Color(0x99181C22)
+    val border = if (liveOverlay) Color(0x33FFFFFF) else Color(0x22FFFFFF)
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(Color(0x99181C22))
-            .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(8.dp))
+            .background(background)
+            .border(1.dp, border, RoundedCornerShape(8.dp))
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -1337,13 +1632,16 @@ private fun RemoteBottomNav(
     selected: RemoteDestination,
     onDestinationSelected: (RemoteDestination) -> Unit,
     modifier: Modifier = Modifier,
+    liveOverlay: Boolean = false,
 ) {
+    val background = if (liveOverlay) Color.Transparent else Color(0xEE10141A)
+    val border = if (liveOverlay) Color.Transparent else Color(0x1AFFFFFF)
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(88.dp)
-            .background(Color(0xEE10141A))
-            .border(1.dp, Color(0x1AFFFFFF))
+            .background(background)
+            .border(1.dp, border)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically,
@@ -1427,3 +1725,9 @@ fun remoteMediaForSelectedType(state: RemoteViewerUiState): List<RemoteMediaItem
     if (state.selectedType == MediaType.VIDEO) state.videos else state.photos
 
 private val remoteDateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+private val RemoteForeground = Color(0xFFDFE2EB)
+private val RemoteMutedText = Color(0xFFE2BFB0)
+private val RemoteSurfaceHigh = Color(0xFF262A31)
+private val RemoteSafetyOrange = Color(0xFFFF6B00)
+private val RemoteCyberBlue = Color(0xFF98CBFF)
+private val RemoteSignalGreen = Color(0xFF4AE183)

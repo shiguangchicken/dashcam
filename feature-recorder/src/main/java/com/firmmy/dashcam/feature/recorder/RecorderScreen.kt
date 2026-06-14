@@ -53,6 +53,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.firmmy.dashcam.core.common.DashCamFormatters
@@ -65,6 +66,7 @@ data class RecorderUiState(
     val recordingStatus: RecordingStatus = RecordingStatus.IDLE,
     val currentSegmentMillis: Long = 0L,
     val remainingStorageBytes: Long = 42L * 1024L * 1024L * 1024L,
+    val speedKmh: Int = 0,
     val batteryPercent: Int = 82,
     val temperatureCelsius: Float = 36.5f,
     val audioEnabled: Boolean = true,
@@ -197,6 +199,7 @@ fun RecorderScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                SpeedHud(speedKmh = state.speedKmh)
                 RecordingTimer(state)
             }
             Column(
@@ -288,6 +291,7 @@ private fun DroidDashTopBar(state: RecorderUiState) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(
+                modifier = Modifier.weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -297,14 +301,13 @@ private fun DroidDashTopBar(state: RecorderUiState) {
                     color = SafetyOrange,
                     fontWeight = FontWeight.Bold,
                     fontSize = 24.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Clip,
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 HudChip("${state.temperatureCelsius.toInt()} C", CyberBlue)
                 HudChip(if (state.batteryPercent > 20) "Charging" else "Battery low", SignalGreen)
-                if (state.remoteViewers.isNotEmpty()) {
-                    HudChip("${state.remoteViewers.size} Clients", SafetyOrange)
-                }
             }
         }
     }
@@ -376,6 +379,31 @@ private fun CameraPreviewHud(recording: Boolean) {
             color = MutedText,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
+        )
+    }
+}
+
+@Composable
+private fun SpeedHud(speedKmh: Int) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(0.dp),
+        modifier = Modifier.testTag("recorder_speed_hud"),
+    ) {
+        Text(
+            modifier = Modifier.testTag("recorder_speed_value"),
+            text = speedKmh.coerceAtLeast(0).toString(),
+            color = Color.White,
+            fontSize = 104.sp,
+            fontWeight = FontWeight.Bold,
+            lineHeight = 104.sp,
+        )
+        Text(
+            modifier = Modifier.testTag("recorder_speed_unit"),
+            text = "KM/H",
+            color = MutedText,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
         )
     }
 }

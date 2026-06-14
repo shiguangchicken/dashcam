@@ -69,6 +69,14 @@ class EmbeddedHttpServerTest {
     }
 
     @Test
+    fun statusSpeedRoundTripsAndMissingSpeedDefaultsToNull() {
+        val status = RemoteStatus(speedKmh = 42)
+
+        assertEquals(42, RemoteJson.parseStatus(RemoteJson.status(status)).speedKmh)
+        assertEquals(null, RemoteJson.parseStatus("""{"recordingStatus":"idle"}""").speedKmh)
+    }
+
+    @Test
     fun servesStatusMediaRangeAndSettings() = runBlocking {
         server.start()
 
@@ -243,6 +251,7 @@ private class FakeRemoteDataSource : DashCamRemoteDataSource {
             hotspotEnabled = true,
             hotspotSsid = "DashCam",
             freeSpaceBytes = 123L,
+            speedKmh = 42,
             liveStreamAvailable = liveFrame != null || h264Stream.available,
         )
 

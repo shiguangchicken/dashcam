@@ -1,10 +1,12 @@
 package com.firmmy.dashcam.feature.remote
 
+import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -25,7 +27,7 @@ import org.junit.Test
 
 class RemoteViewerScreenInstrumentedTest {
     @get:Rule
-    val composeRule = createComposeRule()
+    val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
     fun remoteViewerScreenConnectsAndLoadsMedia() {
@@ -98,6 +100,7 @@ class RemoteViewerScreenInstrumentedTest {
                     hotspotEnabled = true,
                     hotspotSsid = "DashCam",
                     freeSpaceBytes = 1024L,
+                    speedKmh = 42,
                 ),
                 videos = listOf(media(1L, MediaType.VIDEO)),
                 photos = listOf(media(2L, MediaType.PHOTO)),
@@ -152,16 +155,20 @@ class RemoteViewerScreenInstrumentedTest {
         }
 
         composeRule.onNodeWithTag("remote_idle_background").assertExists()
+        composeRule.onNodeWithTag("remote_speed_value").assertTextEquals("0")
+        composeRule.onNodeWithTag("remote_speed_unit").assertTextEquals("KM/H")
 
         state = state.copy(
             status = state.status.copy(
                 recordingStatus = RecordingStatus.RECORDING_DRIVING,
                 liveStreamAvailable = true,
+                speedKmh = 42,
             ),
         )
         composeRule.waitForIdle()
 
         composeRule.onNodeWithTag("remote_live_stream_background").assertExists()
+        composeRule.onNodeWithTag("remote_speed_value").assertTextEquals("42")
     }
 
     private class FakeRemoteViewerClient : RemoteViewerClient {
@@ -182,6 +189,7 @@ class RemoteViewerScreenInstrumentedTest {
                 hotspotEnabled = true,
                 hotspotSsid = "DashCam",
                 freeSpaceBytes = 1024L,
+                speedKmh = 42,
             )
 
         override suspend fun media(type: MediaType?): List<RemoteMediaItem> {

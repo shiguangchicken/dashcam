@@ -13,6 +13,7 @@ data class RemoteStatus(
     val hotspotEnabled: Boolean = false,
     val hotspotSsid: String = "",
     val freeSpaceBytes: Long = 0L,
+    val speedKmh: Int? = null,
     val batteryPercent: Int? = null,
     val temperatureCelsius: Float? = null,
     val liveStreamAvailable: Boolean = false,

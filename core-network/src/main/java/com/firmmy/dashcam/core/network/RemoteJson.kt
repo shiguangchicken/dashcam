@@ -16,6 +16,7 @@ object RemoteJson {
             .put("hotspotEnabled", value.hotspotEnabled)
             .put("hotspotSsid", value.hotspotSsid)
             .put("freeSpaceBytes", value.freeSpaceBytes)
+            .putNullable("speedKmh", value.speedKmh)
             .putNullable("batteryPercent", value.batteryPercent)
             .putNullable("temperatureCelsius", value.temperatureCelsius)
             .put("liveStreamAvailable", value.liveStreamAvailable)
@@ -106,6 +107,7 @@ object RemoteJson {
             hotspotEnabled = json.optBoolean("hotspotEnabled", false),
             hotspotSsid = json.optString("hotspotSsid"),
             freeSpaceBytes = json.optLong("freeSpaceBytes", 0L),
+            speedKmh = json.nullableInt("speedKmh"),
             batteryPercent = json.nullableInt("batteryPercent"),
             temperatureCelsius = json.nullableDouble("temperatureCelsius")?.toFloat(),
             liveStreamAvailable = json.optBoolean("liveStreamAvailable", false),

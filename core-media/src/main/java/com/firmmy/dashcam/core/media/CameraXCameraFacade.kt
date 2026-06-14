@@ -12,6 +12,7 @@ import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
+import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FallbackStrategy
 import androidx.camera.video.FileOutputOptions
@@ -43,6 +44,7 @@ class CameraXCameraFacade(
     private val executor: Executor = Executors.newSingleThreadExecutor(),
     private val clock: () -> Instant = { Instant.now() },
     private val onPreviewFrame: (ByteArray) -> Unit = {},
+    private val previewSurfaceProvider: () -> Preview.SurfaceProvider? = { null },
 ) : CameraRecordingFacade {
     private var cameraProvider: ProcessCameraProvider? = null
     private var videoCapture: VideoCapture<Recorder>? = null
@@ -79,6 +81,11 @@ class CameraXCameraFacade(
                 .setTargetVideoEncodingBitRate(profile.bitrateKbps * 1_000)
                 .build()
             val capture = VideoCapture.withOutput(recorder)
+            val preview = previewSurfaceProvider()?.let { surfaceProvider ->
+                Preview.Builder()
+                    .build()
+                    .also { it.setSurfaceProvider(surfaceProvider) }
+            }
             val analysis = ImageAnalysis.Builder()
                 .setTargetResolution(Size(PREVIEW_WIDTH, PREVIEW_HEIGHT))
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
@@ -90,7 +97,7 @@ class CameraXCameraFacade(
                 }
 
             provider.unbindAll()
-            bindRecordingUseCases(provider, capture, analysis)
+            bindRecordingUseCases(provider, capture, preview, analysis)
             videoCapture = capture
             imageCapture = null
 
@@ -196,17 +203,43 @@ class CameraXCameraFacade(
     private fun bindRecordingUseCases(
         provider: ProcessCameraProvider,
         capture: VideoCapture<Recorder>,
+        preview: Preview?,
         analysis: ImageAnalysis,
     ) {
-        runCatching {
-            provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, capture, analysis)
-            imageAnalysis = analysis
-        }.getOrElse {
+        val bound = when {
+            preview != null && bindUseCases(provider, capture, preview, analysis) -> {
+                imageAnalysis = analysis
+                true
+            }
+
+            preview != null && bindUseCases(provider, capture, preview) -> {
+                imageAnalysis = null
+                true
+            }
+
+            bindUseCases(provider, capture, analysis) -> {
+                imageAnalysis = analysis
+                true
+            }
+
+            else -> false
+        }
+        if (!bound) {
             provider.unbindAll()
             provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, capture)
             imageAnalysis = null
         }
     }
+
+    private fun bindUseCases(
+        provider: ProcessCameraProvider,
+        capture: VideoCapture<Recorder>,
+        vararg useCases: androidx.camera.core.UseCase,
+    ): Boolean =
+        runCatching {
+            provider.unbindAll()
+            provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, capture, *useCases)
+        }.isSuccess
 
     private fun ensureImageCapture(): ImageCapture {
         imageCapture?.let { return it }

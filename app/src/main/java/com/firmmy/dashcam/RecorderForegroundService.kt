@@ -27,7 +27,6 @@ import com.firmmy.dashcam.core.database.MediaRepository
 import com.firmmy.dashcam.core.database.RecordSessionRepository
 import com.firmmy.dashcam.core.media.AndroidThumbnailGenerator
 import com.firmmy.dashcam.core.media.CameraRecorderManager
-import com.firmmy.dashcam.core.media.CameraXCameraFacade
 import com.firmmy.dashcam.core.media.DashCamMediaDirectories
 import com.firmmy.dashcam.core.media.DashCamMediaRepository
 import com.firmmy.dashcam.core.media.RecordingProfiles
@@ -200,10 +199,10 @@ class RecorderForegroundService : Service(), LifecycleOwner {
         val recorderManager = CameraRecorderManager(
             directories = directories,
             mediaRepository = dashCamMediaRepository,
-            cameraFacade = CameraXCameraFacade(
+            cameraFacade = Camera2SharedEncoderFacade(
                 context = applicationContext,
-                lifecycleOwner = this,
-                onPreviewFrame = RecorderRuntimeState::updateLivePreviewFrame,
+                previewSurfaceProvider = RecorderPreviewSurfaceRegistry::surface,
+                liveStream = RecorderRuntimeState.liveH264Stream(),
             ),
         )
         return RecorderServiceDependencies(

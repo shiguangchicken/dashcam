@@ -83,7 +83,6 @@ fun CameraBackedRecorderScreen(
                 audioEnabled = runtimeStatus.audioEnabled,
                 remainingStorageBytes = runtimeStatus.freeSpaceBytes.takeIf { it > 0L }
                     ?: state.remainingStorageBytes,
-                livePreviewFrame = RecorderRuntimeState.livePreviewFrame(),
                 currentSegmentMillis = if (runtimeRecordingStatus == RecordingStatus.IDLE) {
                     0L
                 } else {
@@ -105,6 +104,9 @@ fun CameraBackedRecorderScreen(
             hotspotError = hotspot.error,
             remoteViewers = hotspot.remoteViewers,
         ),
+        recordingBackground = {
+            RecorderPreviewBackground()
+        },
         onStartStopClick = {
             if (state.recordingStatus == RecordingStatus.IDLE) {
                 val action = when (state.mode) {

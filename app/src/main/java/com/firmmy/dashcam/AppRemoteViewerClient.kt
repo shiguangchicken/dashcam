@@ -68,6 +68,9 @@ class AppRemoteViewerClient(
     override fun liveStreamUrl(): String =
         requireClient().liveStreamUrl()
 
+    override fun liveH264WebSocketUrl(): String =
+        requireClient().liveH264WebSocketUrl()
+
     private fun requireClient(): RemoteDashCamClient =
         client ?: error("Remote client is not connected")
 

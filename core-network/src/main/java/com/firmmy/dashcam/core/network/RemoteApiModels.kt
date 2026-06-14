@@ -88,6 +88,8 @@ interface DashCamRemoteDataSource {
 
     suspend fun livePreviewFrame(): ByteArray? = null
 
+    fun liveH264Stream(): H264LiveStream? = null
+
     suspend fun deleteMedia(id: Long): Boolean
 
     suspend fun settings(): RemoteSettings

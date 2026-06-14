@@ -26,8 +26,12 @@ import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.WebSockets
 import io.ktor.server.websocket.webSocket
+import io.ktor.websocket.CloseReason
+import io.ktor.websocket.Frame
+import io.ktor.websocket.close
 import io.ktor.websocket.send
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import java.util.concurrent.ConcurrentHashMap
@@ -145,6 +149,32 @@ class EmbeddedHttpServer(
                 send(RemoteJson.event(RemoteEvent.StatusChanged(dataSource.status().withActiveViewers())))
                 eventBus.events.collectLatest { event ->
                     send(RemoteJson.event(event))
+                }
+            }
+
+            webSocket("/ws/live/h264") {
+                call.trackRemoteViewer()
+                val stream = dataSource.liveH264Stream()
+                    ?: return@webSocket close(CloseReason(CloseReason.Codes.CANNOT_ACCEPT, "H.264 live stream unavailable"))
+                var configSent = false
+                stream.subscribe().collect { event ->
+                    when (event) {
+                        is H264LiveStreamEvent.Config -> {
+                            send(event.value.toJson())
+                            configSent = true
+                        }
+
+                        is H264LiveStreamEvent.Frame -> {
+                            if (!configSent && !event.value.isKeyframe) return@collect
+                            if (!configSent) {
+                                stream.currentConfig()?.let { config ->
+                                    send(config.toJson())
+                                    configSent = true
+                                } ?: return@collect
+                            }
+                            outgoing.send(Frame.Binary(fin = true, data = event.value.toWebSocketPayload()))
+                        }
+                    }
                 }
             }
         }

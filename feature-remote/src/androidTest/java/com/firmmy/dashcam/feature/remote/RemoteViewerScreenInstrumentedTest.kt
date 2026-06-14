@@ -214,6 +214,8 @@ class RemoteViewerScreenInstrumentedTest {
         override fun downloadUrl(id: Long): String = "http://127.0.0.1:8080/api/media/$id/download"
 
         override fun liveStreamUrl(): String = "http://127.0.0.1:8080/api/live.mjpeg"
+
+        override fun liveH264WebSocketUrl(): String = "ws://127.0.0.1:8080/ws/live/h264"
     }
 
     companion object {

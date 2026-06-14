@@ -2,6 +2,7 @@ package com.firmmy.dashcam
 
 import com.firmmy.dashcam.core.common.RecordingMode
 import com.firmmy.dashcam.core.common.RecordingStatus
+import com.firmmy.dashcam.core.network.H264LiveStream
 import com.firmmy.dashcam.core.network.RemoteStatus
 import java.util.concurrent.atomic.AtomicReference
 
@@ -12,7 +13,7 @@ object RecorderRuntimeState {
             mode = RecordingMode.DRIVING,
         ),
     )
-    private val livePreviewFrame = AtomicReference<ByteArray?>(null)
+    private val h264LiveStream = H264LiveStream()
 
     fun updateStatus(
         recordingStatus: RecordingStatus,
@@ -30,7 +31,7 @@ object RecorderRuntimeState {
                 hotspotEnabled = hotspotEnabled,
                 hotspotSsid = hotspotSsid,
                 freeSpaceBytes = freeSpaceBytes,
-                liveStreamAvailable = livePreviewFrame.get() != null && recordingStatus != RecordingStatus.IDLE,
+                liveStreamAvailable = isLiveStreamAvailable(recordingStatus),
             ),
         )
     }
@@ -50,20 +51,17 @@ object RecorderRuntimeState {
         )
     }
 
-    fun updateLivePreviewFrame(frame: ByteArray) {
-        livePreviewFrame.set(frame)
-        val current = status.get()
-        if (current.recordingStatus != RecordingStatus.IDLE && !current.liveStreamAvailable) {
-            status.set(current.copy(liveStreamAvailable = true))
-        }
-    }
-
     fun clearLivePreviewFrame() {
-        livePreviewFrame.set(null)
-        status.set(status.get().copy(liveStreamAvailable = false))
+        val current = status.get()
+        status.set(current.copy(liveStreamAvailable = isLiveStreamAvailable(current.recordingStatus)))
     }
 
     fun status(): RemoteStatus = status.get()
 
-    fun livePreviewFrame(): ByteArray? = livePreviewFrame.get()
+    fun livePreviewFrame(): ByteArray? = null
+
+    fun liveH264Stream(): H264LiveStream = h264LiveStream
+
+    private fun isLiveStreamAvailable(recordingStatus: RecordingStatus): Boolean =
+        recordingStatus != RecordingStatus.IDLE && h264LiveStream.available
 }

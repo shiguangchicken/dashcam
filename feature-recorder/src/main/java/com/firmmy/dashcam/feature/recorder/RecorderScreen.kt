@@ -1,6 +1,5 @@
 package com.firmmy.dashcam.feature.recorder
 
-import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -46,7 +45,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -78,7 +76,6 @@ data class RecorderUiState(
     val hotspotError: String = "",
     val voiceStatus: String = "Off",
     val photoCount: Int = 0,
-    val livePreviewFrame: ByteArray? = null,
     val remoteViewers: List<RemoteViewerClientInfo> = emptyList(),
 )
 
@@ -150,6 +147,7 @@ class FakeRecorderStateHolder(
 fun RecorderScreen(
     modifier: Modifier = Modifier,
     state: RecorderUiState,
+    recordingBackground: (@Composable () -> Unit)? = null,
     onStartStopClick: () -> Unit,
     onDrivingModeClick: () -> Unit,
     onParkingModeClick: () -> Unit,
@@ -166,10 +164,20 @@ fun RecorderScreen(
             .background(Color(0xFF10141A))
             .testTag("recorder_dashboard"),
     ) {
-        RecorderBackground(
-            recording = recording,
-            livePreviewFrame = state.livePreviewFrame,
-        )
+        if (recordingBackground != null) {
+            recordingBackground()
+            if (recording) {
+                RecorderBackgroundScrim()
+            } else {
+                RecorderBackground(
+                    recording = false,
+                )
+            }
+        } else {
+            RecorderBackground(
+                recording = recording,
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -247,30 +255,20 @@ fun FakeRecorderScreen(
 @Composable
 private fun RecorderBackground(
     recording: Boolean,
-    livePreviewFrame: ByteArray?,
 ) {
-    val bitmap = remember(livePreviewFrame) {
-        livePreviewFrame?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
-    }
-    if (recording && bitmap != null) {
-        Image(
-            bitmap = bitmap.asImageBitmap(),
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .testTag("recorder_live_background"),
-            contentScale = ContentScale.Crop,
-        )
-    } else {
-        Image(
-            painter = painterResource(id = R.drawable.recorder_idle_background),
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .testTag("recorder_idle_background"),
-            contentScale = ContentScale.Crop,
-        )
-    }
+    Image(
+        painter = painterResource(id = R.drawable.recorder_idle_background),
+        contentDescription = null,
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag(if (recording) "recorder_preview_unavailable_background" else "recorder_idle_background"),
+        contentScale = ContentScale.Crop,
+    )
+    RecorderBackgroundScrim()
+}
+
+@Composable
+private fun RecorderBackgroundScrim() {
     Box(
         modifier = Modifier
             .fillMaxSize()

@@ -94,6 +94,8 @@ interface RemoteViewerClient {
     fun downloadUrl(id: Long): String
 
     fun liveStreamUrl(): String
+
+    fun liveH264WebSocketUrl(): String
 }
 
 data class RemoteViewerUiState(
@@ -231,6 +233,7 @@ fun RemoteViewerScreen(
             }
         },
         liveStreamUrl = { client.liveStreamUrl() },
+        liveH264WebSocketUrl = { client.liveH264WebSocketUrl() },
         thumbnailUrl = { client.thumbnailUrl(it) },
     )
 }
@@ -251,6 +254,7 @@ fun RemoteViewerContent(
     onSettingsChanged: (RemoteSettings) -> Unit = {},
     onSaveSettingsClick: () -> Unit = {},
     liveStreamUrl: () -> String = { "" },
+    liveH264WebSocketUrl: () -> String = { "" },
     thumbnailUrl: (Long) -> String = { "" },
 ) {
     Box(
@@ -274,6 +278,7 @@ fun RemoteViewerContent(
                 selected = state.destination,
                 onDestinationSelected = onDestinationSelected,
                 liveStreamUrl = liveStreamUrl(),
+                liveH264WebSocketUrl = liveH264WebSocketUrl(),
             )
             return@Box
         }
@@ -294,6 +299,7 @@ fun RemoteViewerContent(
                         onRefreshClick = onRefreshClick,
                         onCommand = onCommand,
                         liveStreamUrl = liveStreamUrl(),
+                        liveH264WebSocketUrl = liveH264WebSocketUrl(),
                     )
 
                     RemoteDestination.Media -> RemoteMediaBrowserScreen(
@@ -428,6 +434,7 @@ private fun RemoteLiveDashboard(
     selected: RemoteDestination,
     onDestinationSelected: (RemoteDestination) -> Unit,
     liveStreamUrl: String,
+    liveH264WebSocketUrl: String,
 ) {
     val recording = state.status.recordingStatus != RecordingStatus.IDLE
     Box(
@@ -439,6 +446,7 @@ private fun RemoteLiveDashboard(
             recording = recording,
             liveStreamAvailable = state.status.liveStreamAvailable,
             liveStreamUrl = liveStreamUrl,
+            liveH264WebSocketUrl = liveH264WebSocketUrl,
         )
         Column(
             modifier = Modifier
@@ -491,30 +499,15 @@ private fun RemoteLiveBackground(
     recording: Boolean,
     liveStreamAvailable: Boolean,
     liveStreamUrl: String,
+    liveH264WebSocketUrl: String,
 ) {
-    if (recording && liveStreamAvailable && liveStreamUrl.isNotBlank()) {
-        AndroidView(
+    if (recording && liveStreamAvailable && liveH264WebSocketUrl.isNotBlank()) {
+        H264RemoteLiveSurface(
+            url = liveH264WebSocketUrl,
+            active = true,
             modifier = Modifier
                 .fillMaxSize()
                 .testTag("remote_live_stream_background"),
-            factory = { context ->
-                WebView(context).apply {
-                    setBackgroundColor(android.graphics.Color.BLACK)
-                    webViewClient = WebViewClient()
-                    settings.loadWithOverviewMode = true
-                    settings.useWideViewPort = true
-                }
-            },
-            update = { view ->
-                if (view.tag != liveStreamUrl) {
-                    view.tag = liveStreamUrl
-                    view.loadUrl(liveStreamUrl)
-                }
-            },
-            onRelease = { view ->
-                view.stopLoading()
-                view.destroy()
-            },
         )
     } else {
         Image(
@@ -539,6 +532,7 @@ private fun RemoteHomeScreen(
     onRefreshClick: () -> Unit,
     onCommand: (DashCamCommand) -> Unit,
     liveStreamUrl: String,
+    liveH264WebSocketUrl: String,
 ) {
     Column(
         modifier = Modifier
@@ -551,6 +545,7 @@ private fun RemoteHomeScreen(
         RemoteLivePreviewPanel(
             status = state.status,
             streamUrl = liveStreamUrl,
+            liveH264WebSocketUrl = liveH264WebSocketUrl,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             TelemetryCard(
@@ -593,6 +588,7 @@ private fun RemoteHomeScreen(
 private fun RemoteLivePreviewPanel(
     status: RemoteStatus,
     streamUrl: String,
+    liveH264WebSocketUrl: String,
 ) {
     Box(
         modifier = Modifier
@@ -603,29 +599,13 @@ private fun RemoteLivePreviewPanel(
             .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(8.dp)),
         contentAlignment = Alignment.Center,
     ) {
-        if (status.liveStreamAvailable && streamUrl.isNotBlank()) {
-            AndroidView(
+        if (status.liveStreamAvailable && liveH264WebSocketUrl.isNotBlank()) {
+            H264RemoteLiveSurface(
+                url = liveH264WebSocketUrl,
+                active = true,
                 modifier = Modifier
                     .fillMaxSize()
                     .testTag("remote_live_preview"),
-                factory = { context ->
-                    WebView(context).apply {
-                        setBackgroundColor(android.graphics.Color.BLACK)
-                        webViewClient = WebViewClient()
-                        settings.loadWithOverviewMode = true
-                        settings.useWideViewPort = true
-                    }
-                },
-                update = { view ->
-                    if (view.tag != streamUrl) {
-                        view.tag = streamUrl
-                        view.loadUrl(streamUrl)
-                    }
-                },
-                onRelease = { view ->
-                    view.stopLoading()
-                    view.destroy()
-                },
             )
         } else {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {

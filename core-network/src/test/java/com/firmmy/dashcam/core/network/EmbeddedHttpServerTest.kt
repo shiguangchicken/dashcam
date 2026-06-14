@@ -20,10 +20,13 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
+import java.nio.ByteBuffer
 import java.nio.file.Files
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -140,6 +143,7 @@ class EmbeddedHttpServerTest {
         assertTrue(remoteClient.thumbnailUrl(1).endsWith("/api/media/1/thumbnail"))
         assertTrue(remoteClient.downloadUrl(1).endsWith("/api/media/1/download"))
         assertTrue(remoteClient.liveStreamUrl().endsWith("/api/live.mjpeg"))
+        assertTrue(remoteClient.liveH264WebSocketUrl().endsWith("/ws/live/h264"))
     }
 
     @Test
@@ -162,6 +166,45 @@ class EmbeddedHttpServerTest {
         assertEquals(HttpStatusCode.OK, response.status)
         assertTrue(body.contains("--dashcam-frame"))
         assertTrue(body.contains("Content-Type: image/jpeg"))
+    }
+
+    @Test
+    fun liveH264WebSocketStreamsConfigAndFrames() = runBlocking {
+        dataSource.h264Stream.publishConfig(
+            H264StreamConfig(
+                width = 1920,
+                height = 1080,
+                fps = 60,
+                rotationDegrees = 90,
+                sps = byteArrayOf(0x67),
+                pps = byteArrayOf(0x68),
+            ),
+        )
+        server.start()
+
+        client.webSocket(baseUrl().replace("http://", "ws://") + "/ws/live/h264") {
+            val config = withTimeout(2_000L) { incoming.receive() } as Frame.Text
+            val configText = config.readText()
+            assertTrue(configText.contains("\"codec\":\"h264\""))
+            assertTrue(configText.contains("\"rotationDegrees\":90"))
+
+            val payload = byteArrayOf(0x00, 0x00, 0x00, 0x01, 0x65)
+            dataSource.h264Stream.publishFrame(
+                H264AccessUnit(
+                    presentationTimeUs = 1234L,
+                    flags = H264FrameFlags.KEYFRAME,
+                    payload = payload,
+                ),
+            )
+
+            val frame = withTimeout(2_000L) { incoming.receive() } as Frame.Binary
+            val bytes = frame.data
+            val buffer = ByteBuffer.wrap(bytes)
+            assertEquals(1234L, buffer.long)
+            assertEquals(H264FrameFlags.KEYFRAME.toByte(), buffer.get())
+            assertEquals(payload.size, buffer.int)
+            assertArrayEquals(payload, bytes.copyOfRange(H264AccessUnit.HEADER_SIZE_BYTES, bytes.size))
+        }
     }
 
     private suspend fun baseUrl(): String = "http://127.0.0.1:${server.resolvedPort()}"
@@ -190,6 +233,7 @@ private class FakeRemoteDataSource : DashCamRemoteDataSource {
 
     val deletedIds = mutableListOf<Long>()
     var liveFrame: ByteArray? = null
+    val h264Stream = H264LiveStream()
 
     override suspend fun status(): RemoteStatus =
         RemoteStatus(
@@ -199,7 +243,7 @@ private class FakeRemoteDataSource : DashCamRemoteDataSource {
             hotspotEnabled = true,
             hotspotSsid = "DashCam",
             freeSpaceBytes = 123L,
-            liveStreamAvailable = liveFrame != null,
+            liveStreamAvailable = liveFrame != null || h264Stream.available,
         )
 
     override suspend fun listMedia(
@@ -226,6 +270,8 @@ private class FakeRemoteDataSource : DashCamRemoteDataSource {
         if (id == 1L) RemoteMediaAsset(mediaFile, "video/mp4") else null
 
     override suspend fun livePreviewFrame(): ByteArray? = liveFrame.also { liveFrame = null }
+
+    override fun liveH264Stream(): H264LiveStream = h264Stream
 
     override suspend fun deleteMedia(id: Long): Boolean {
         deletedIds += id

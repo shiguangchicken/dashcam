@@ -87,10 +87,19 @@ class RemoteDashCamClient(
 
     fun liveStreamUrl(): String = apiUrl("live.mjpeg")
 
+    fun liveH264WebSocketUrl(): String =
+        rawUrl("ws", "live", "h264")
+            .replaceFirst("http://", "ws://")
+            .replaceFirst("https://", "wss://")
+
     private fun apiUrl(vararg segments: String): String {
+        return rawUrl("api", *segments)
+    }
+
+    private fun rawUrl(vararg segments: String): String {
         val url = Url(baseUrl.trimEnd('/'))
         return io.ktor.http.URLBuilder(url)
-            .appendPathSegments(listOf("api") + segments)
+            .appendPathSegments(segments.toList())
             .buildString()
     }
 

@@ -14,6 +14,7 @@ import com.firmmy.dashcam.core.media.DashCamMediaDirectories
 import com.firmmy.dashcam.core.media.DashCamMediaRepository
 import com.firmmy.dashcam.core.network.DashCamRemoteCommandDispatcher
 import com.firmmy.dashcam.core.network.DashCamRemoteDataSource
+import com.firmmy.dashcam.core.network.H264LiveStream
 import com.firmmy.dashcam.core.network.RemoteMediaAsset
 import com.firmmy.dashcam.core.network.RemoteMediaItem
 import com.firmmy.dashcam.core.network.RemoteSettings
@@ -40,8 +41,8 @@ class AppRemoteDataSource(
             hotspotEnabled = settings.hotspotSsid.isNotBlank(),
             hotspotSsid = settings.hotspotSsid,
             freeSpaceBytes = root.usableSpace,
-            liveStreamAvailable = RecorderRuntimeState.livePreviewFrame() != null &&
-                runtimeStatus.recordingStatus != RecordingStatus.IDLE,
+            liveStreamAvailable = runtimeStatus.recordingStatus != RecordingStatus.IDLE &&
+                RecorderRuntimeState.liveH264Stream().available,
         )
     }
 
@@ -74,6 +75,8 @@ class AppRemoteDataSource(
     }
 
     override suspend fun livePreviewFrame(): ByteArray? = RecorderRuntimeState.livePreviewFrame()
+
+    override fun liveH264Stream(): H264LiveStream = RecorderRuntimeState.liveH264Stream()
 
     override suspend fun deleteMedia(id: Long): Boolean =
         dashCamMediaRepository.deleteMedia(id).isSuccess

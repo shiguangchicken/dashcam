@@ -1,6 +1,6 @@
 package com.firmmy.dashcam.feature.recorder
 
-import android.graphics.Bitmap
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -15,7 +15,6 @@ import com.firmmy.dashcam.core.common.MediaType
 import com.firmmy.dashcam.core.common.RecordingMode
 import com.firmmy.dashcam.core.common.RecordingStatus
 import com.firmmy.dashcam.core.network.RemoteViewerClientInfo
-import java.io.ByteArrayOutputStream
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -50,12 +49,13 @@ class RecorderScreenComposeTest {
     }
 
     @Test
-    fun recorderDashboardUsesIdleAndLiveBackgrounds() {
+    fun recorderDashboardUsesIdleAndPreviewBackgrounds() {
         var state by mutableStateOf(RecorderUiState(recordingStatus = RecordingStatus.IDLE))
         composeRule.setContent {
             MaterialTheme {
                 RecorderScreen(
                     state = state,
+                    recordingBackground = { Box(modifier = androidx.compose.ui.Modifier.testTag("test_recording_preview")) },
                     onStartStopClick = {},
                     onDrivingModeClick = {},
                     onParkingModeClick = {},
@@ -71,10 +71,9 @@ class RecorderScreenComposeTest {
 
         state = RecorderUiState(
             recordingStatus = RecordingStatus.RECORDING_DRIVING,
-            livePreviewFrame = testJpegBytes(),
         )
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag("recorder_live_background").assertExists()
+        composeRule.onNodeWithTag("test_recording_preview").assertExists()
     }
 
     @Test
@@ -180,12 +179,4 @@ class RecorderScreenComposeTest {
                 sizeBytes = 512L,
             ),
         )
-
-    private fun testJpegBytes(): ByteArray {
-        val bitmap = Bitmap.createBitmap(4, 4, Bitmap.Config.ARGB_8888)
-        return ByteArrayOutputStream().use { output ->
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, output)
-            output.toByteArray()
-        }
-    }
 }
